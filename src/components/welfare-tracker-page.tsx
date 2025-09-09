@@ -51,6 +51,14 @@ import {
   SheetClose,
 } from "@/components/ui/sheet";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -110,6 +118,7 @@ export default function WelfareTrackerPage() {
   const [eventToDelete, setEventToDelete] = React.useState<string | null>(null);
   const [followUpInterval, setFollowUpInterval] = React.useState(14);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [historyEmployee, setHistoryEmployee] = React.useState<WelfareEvent | null>(null);
 
   const form = useForm<EventFormValues>({
     resolver: zodResolver(eventFormSchema),
@@ -408,6 +417,18 @@ export default function WelfareTrackerPage() {
     });
   };
 
+  const handleShowHistory = (event: WelfareEvent) => {
+    setHistoryEmployee(event);
+  };
+
+  const employeeHistory = React.useMemo(() => {
+    if (!historyEmployee) return [];
+    return events
+        .filter(e => e.name === historyEmployee.name)
+        .sort((a, b) => new Date(b.welfareDate).getTime() - new Date(a.welfareDate).getTime());
+  }, [events, historyEmployee]);
+
+
   return (
     <>
       <Card>
@@ -551,7 +572,9 @@ export default function WelfareTrackerPage() {
                               <AvatarImage src={event.avatarUrl} alt={event.name} data-ai-hint="person portrait" />
                               <AvatarFallback>{event.name.charAt(0)}</AvatarFallback>
                             </Avatar>
-                            <span className="font-medium">{event.name}</span>
+                            <Button variant="link" className="p-0 h-auto" onClick={() => handleShowHistory(event)}>
+                              <span className="font-medium">{event.name}</span>
+                            </Button>
                           </div>
                         </TableCell>
                         <TableCell>{event.eventType}</TableCell>
@@ -755,6 +778,44 @@ export default function WelfareTrackerPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      <Dialog open={!!historyEmployee} onOpenChange={(isOpen) => !isOpen && setHistoryEmployee(null)}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Welfare History for {historyEmployee?.name}</DialogTitle>
+            <DialogDescription>
+              Showing all past welfare events for this employee.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto pr-4">
+            <div className="space-y-6">
+              {employeeHistory.length > 0 ? employeeHistory.map(event => (
+                <div key={event.id} className="flex items-start gap-4">
+                  <Avatar className="h-10 w-10 border">
+                    <AvatarImage src={event.avatarUrl} alt={event.name} />
+                    <AvatarFallback>{event.name.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <p className="font-semibold">{event.eventType}</p>
+                      <time className="text-xs text-muted-foreground">{format(event.welfareDate, "dd MMM yyyy")}</time>
+                    </div>
+                     <p className="text-sm text-muted-foreground">{event.notes}</p>
+                     {event.followUpCompleted ? (
+                        <Badge variant="default" className="mt-2">Completed</Badge>
+                     ) : (
+                        <Badge variant="accent" className="mt-2">Pending</Badge>
+                     )}
+                  </div>
+                </div>
+              )) : (
+                <p className="text-center text-muted-foreground py-8">No history found for this employee.</p>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
+
