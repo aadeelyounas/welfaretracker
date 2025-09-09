@@ -14,6 +14,7 @@ import {
   PlusCircle,
   Search,
   Settings,
+  Upload,
 } from "lucide-react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -108,6 +109,7 @@ export default function WelfareTrackerPage() {
   const [eventToEdit, setEventToEdit] = React.useState<WelfareEvent | null>(null);
   const [eventToDelete, setEventToDelete] = React.useState<string | null>(null);
   const [followUpInterval, setFollowUpInterval] = React.useState(14);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const form = useForm<EventFormValues>({
     resolver: zodResolver(eventFormSchema),
@@ -336,6 +338,63 @@ export default function WelfareTrackerPage() {
     link.click();
     document.body.removeChild(link);
   };
+  
+  const exportToJSON = async () => {
+    try {
+      const response = await fetch('/api/welfare-events?format=raw');
+      if (!response.ok) throw new Error('Failed to fetch raw data');
+      const data = await response.json();
+      const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`;
+      const link = document.createElement('a');
+      link.href = jsonString;
+      link.download = 'welfare-events-backup.json';
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Export Error', description: 'Could not export JSON data.' });
+    }
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const content = event.target?.result;
+        if (typeof content !== 'string') {
+          throw new Error('File could not be read.');
+        }
+        const jsonData = JSON.parse(content);
+        const response = await fetch('/api/welfare-events?action=import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(jsonData),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to import data.');
+        }
+
+        toast({ title: 'Import Successful', description: 'Welfare data has been imported.' });
+        await fetchEvents();
+      } catch (error) {
+        toast({ variant: 'destructive', title: 'Import Error', description: error instanceof Error ? error.message : 'Invalid JSON file.' });
+      } finally {
+        // Reset file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      }
+    };
+    reader.readAsText(file);
+  };
 
   const handleStatusFilterChange = (status: string, checked: boolean) => {
     setStatusFilters(prev => {
@@ -388,10 +447,29 @@ export default function WelfareTrackerPage() {
                   </div>
                 </PopoverContent>
               </Popover>
-              <Button variant="outline" size="sm" onClick={exportToCSV} className="w-full sm:w-auto">
-                <Download className="mr-2 h-4 w-4" />
-                Export CSV
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-full sm:w-auto">
+                    <Download className="mr-2 h-4 w-4" />
+                    Export
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={exportToCSV}>Export to CSV</DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportToJSON}>Export to JSON</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+               <Button variant="outline" size="sm" onClick={handleImportClick} className="w-full sm:w-auto">
+                 <Upload className="mr-2 h-4 w-4" />
+                 Import JSON
+               </Button>
+               <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileImport}
+                className="hidden"
+                accept="application/json"
+              />
               <Button size="sm" onClick={() => handleOpenSheet(null)} className="w-full sm:w-auto">
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Add Event

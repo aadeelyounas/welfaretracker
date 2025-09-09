@@ -3,8 +3,22 @@ import { NextResponse } from 'next/server';
 import path from 'path';
 import fs from 'fs/promises';
 import type { WelfareEvent } from '@/lib/types';
+import { z } from 'zod';
 
 const jsonFilePath = path.join(process.cwd(), 'src', 'data', 'welfare-events.json');
+
+const welfareEventSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  avatarUrl: z.string().url(),
+  eventType: z.enum(['Welfare Call', 'Welfare Visit', 'Dog Handler Welfare']),
+  welfareDate: z.string().refine((val) => !isNaN(Date.parse(val)), {message: "Invalid date format"}),
+  followUpCompleted: z.boolean(),
+  notes: z.string(),
+});
+
+const welfareEventArraySchema = z.array(welfareEventSchema);
+
 
 async function getEvents(): Promise<WelfareEvent[]> {
   try {
@@ -35,7 +49,21 @@ async function saveEvents(events: WelfareEvent[]) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const format = searchParams.get('format');
+
+  if (format === 'raw') {
+     try {
+      const data = await fs.readFile(jsonFilePath, 'utf-8');
+      return new Response(data, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    } catch (error) {
+      return NextResponse.json({ message: 'Error reading raw event data' }, { status: 500 });
+    }
+  }
+
   try {
     const events = await getEvents();
     return NextResponse.json(events);
@@ -45,6 +73,23 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const action = searchParams.get('action');
+
+  if (action === 'import') {
+    try {
+      const body = await request.json();
+      const validation = welfareEventArraySchema.safeParse(body);
+      if (!validation.success) {
+        return NextResponse.json({ message: 'Invalid JSON data provided.', errors: validation.error.flatten() }, { status: 400 });
+      }
+      await saveEvents(body);
+      return NextResponse.json({ message: 'Data imported successfully.' });
+    } catch (error) {
+      return NextResponse.json({ message: 'Error importing data.' }, { status: 500 });
+    }
+  }
+    
   try {
     const newEvent: Omit<WelfareEvent, 'id' | 'avatarUrl'> = await request.json();
     const events = await getEvents();
