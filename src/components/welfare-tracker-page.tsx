@@ -12,6 +12,7 @@ import {
   MoreHorizontal,
   PlusCircle,
   Search,
+  Settings,
   X,
 } from "lucide-react";
 import { z } from "zod";
@@ -37,6 +38,7 @@ import {
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Sheet,
@@ -66,13 +68,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // --- MOCK DATA & SETTINGS ---
-const DUE_DAYS_CONFIG = 7; // Configurable setting for due days
-
 const initialEvents: WelfareEvent[] = [
   { id: "EVT001", name: "John Doe", avatarUrl: "https://picsum.photos/100/100?a", welfareDate: new Date(new Date().setDate(new Date().getDate() - 20)), followUpCompleted: false, notes: "Discussed recent project stress.", eventType: 'Check-in' },
   { id: "EVT002", name: "Jane Smith", avatarUrl: "https://picsum.photos/100/100?b", welfareDate: new Date(new Date().setDate(new Date().getDate() - 8)), followUpCompleted: false, notes: "Follow up on previous incident report.", eventType: 'Incident' },
   { id: "EVT003", name: "Sam Wilson", avatarUrl: "https://picsum.photos/100/100?c", welfareDate: new Date(new Date().setDate(new Date().getDate() - 5)), followUpCompleted: true, notes: "Completed.", eventType: 'Support Request' },
-  { id: "EVT004", name: "Emily Brown", avatarUrl: "https://picsum.photos/100/100?d", welfareDate: addDays(new Date(), -DUE_DAYS_CONFIG), followUpCompleted: false, notes: "Regular check-in scheduled.", eventType: 'Meeting' },
+  { id: "EVT004", name: "Emily Brown", avatarUrl: "https://picsum.photos/100/100?d", welfareDate: addDays(new Date(), -14), followUpCompleted: false, notes: "Regular check-in scheduled.", eventType: 'Meeting' },
   { id: "EVT005", name: "Michael Lee", avatarUrl: "https://picsum.photos/100/100?e", welfareDate: new Date(new Date().setDate(new Date().getDate() - 2)), followUpCompleted: false, notes: "Needs assistance with a personal matter.", eventType: 'Support Request' },
 ];
 
@@ -116,6 +116,8 @@ export default function WelfareTrackerPage() {
   const [isAlertOpen, setAlertOpen] = React.useState(false);
   const [eventToEdit, setEventToEdit] = React.useState<WelfareEvent | null>(null);
   const [eventToDelete, setEventToDelete] = React.useState<string | null>(null);
+  const [followUpInterval, setFollowUpInterval] = React.useState(14);
+
 
   const form = useForm<EventFormValues>({
     resolver: zodResolver(eventFormSchema),
@@ -127,12 +129,12 @@ export default function WelfareTrackerPage() {
   });
 
   // --- LOGIC & HELPERS ---
-  const getEventStatus = React.useCallback((event: WelfareEvent) => {
+  const getEventStatus = React.useCallback((event: WelfareEvent, interval: number) => {
     if (event.followUpCompleted) {
       return { text: "Follow-up completed", variant: "default" as StatusVariant, icon: CheckCircle2 };
     }
     const today = startOfToday();
-    const dueDate = addDays(event.welfareDate, DUE_DAYS_CONFIG);
+    const dueDate = addDays(event.welfareDate, interval);
     const daysOverdue = differenceInDays(today, dueDate);
 
     if (daysOverdue > 14) {
@@ -158,7 +160,7 @@ export default function WelfareTrackerPage() {
 
   const filteredEvents = React.useMemo(() => {
     return events
-      .map(event => ({ event, status: getEventStatus(event) }))
+      .map(event => ({ event, status: getEventStatus(event, followUpInterval) }))
       .filter(({ event, status }) => {
         const searchMatch =
           event.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -169,15 +171,37 @@ export default function WelfareTrackerPage() {
         
         return searchMatch && statusMatch;
       })
-      .sort((a, b) => b.event.welfareDate.getTime() - a.event.welfareDate.getTime());
-  }, [events, searchTerm, statusFilters, getEventStatus]);
+      .sort((a, b) => a.event.followUpCompleted === b.event.followUpCompleted ? b.event.welfareDate.getTime() - a.event.welfareDate.getTime() : a.event.followUpCompleted ? 1 : -1);
+  }, [events, searchTerm, statusFilters, getEventStatus, followUpInterval]);
 
   // --- HANDLERS ---
   const handleToggleFollowUp = (id: string) => {
-    setEvents(
-      events.map((e) => (e.id === id ? { ...e, followUpCompleted: !e.followUpCompleted } : e))
-    );
-  };
+    setEvents(currentEvents => {
+      const event = currentEvents.find(e => e.id === id);
+      if (!event) return currentEvents;
+
+      // If marking as complete, create a new event for the next follow-up
+      if (!event.followUpCompleted) {
+        const nextWelfareDate = addDays(startOfToday(), followUpInterval);
+        const newEvent: WelfareEvent = {
+          ...event,
+          id: `EVT${String(Date.now()).slice(-4)}`, // New ID for the new event
+          welfareDate: nextWelfareDate,
+          followUpCompleted: false, // This is the new, incomplete event
+          notes: `Scheduled follow-up after completion on ${format(new Date(), 'dd MMM yyyy')}.`,
+        };
+         const updatedCurrentEvent = { ...event, followUpCompleted: true, notes: `${event.notes}\n\nFollow-up marked complete on ${format(new Date(), 'dd MMM yyyy')}.` };
+         
+         return [...currentEvents.filter(e => e.id !== id), updatedCurrentEvent, newEvent];
+
+      } else {
+        // If marking as incomplete, just toggle the status
+        // This scenario might need more complex logic, e.g., deleting the future event if it exists.
+        // For now, we just reopen it.
+        return currentEvents.map(e => e.id === id ? { ...e, followUpCompleted: false } : e);
+      }
+    });
+};
 
   const handleOpenSheet = (event: WelfareEvent | null) => {
     setEventToEdit(event);
@@ -193,7 +217,7 @@ export default function WelfareTrackerPage() {
       form.reset({
         name: "",
         eventType: undefined,
-        welfareDate: undefined,
+        welfareDate: new Date(),
         followUpCompleted: false,
         notes: "",
       });
@@ -206,6 +230,10 @@ export default function WelfareTrackerPage() {
       if (eventToEdit) {
         // Update
         setEvents(events.map(e => e.id === eventToEdit.id ? { ...eventToEdit, ...data } : e));
+         toast({
+          title: "Event Updated",
+          description: `Welfare event for ${data.name} has been updated.`,
+        });
       } else {
         // Create
         const newEvent: WelfareEvent = {
@@ -214,6 +242,10 @@ export default function WelfareTrackerPage() {
           ...data,
         };
         setEvents([newEvent, ...events]);
+        toast({
+          title: "Event Created",
+          description: `New welfare event for ${data.name} has been logged.`,
+        });
       }
       setSheetOpen(false);
       setEventToEdit(null);
@@ -246,7 +278,7 @@ export default function WelfareTrackerPage() {
       `"${event.name}"`,
       `"${event.eventType}"`,
       `"${format(event.welfareDate, 'yyyy-MM-dd')}"`,
-      `"${format(addDays(event.welfareDate, DUE_DAYS_CONFIG), 'yyyy-MM-dd')}"`,
+      `"${format(addDays(event.welfareDate, followUpInterval), 'yyyy-MM-dd')}"`,
       `"${status.text}"`,
       event.followUpCompleted,
       `"${event.notes.replace(/"/g, '""')}"`
@@ -278,17 +310,46 @@ export default function WelfareTrackerPage() {
     <>
       <Card>
         <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div>
               <CardTitle className="text-2xl font-headline">Welfare Tracker</CardTitle>
               <CardDescription>Manage and monitor welfare events for your team.</CardDescription>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={exportToCSV}>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+               <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-full sm:w-auto">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Settings
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80">
+                  <div className="grid gap-4">
+                    <div className="space-y-2">
+                      <h4 className="font-medium leading-none">Settings</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Configure the tracker's behavior.
+                      </p>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="follow-up-interval">Follow-up Interval (Days)</Label>
+                      <Input
+                        id="follow-up-interval"
+                        type="number"
+                        min="1"
+                        value={followUpInterval}
+                        onChange={(e) => setFollowUpInterval(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+              <Button variant="outline" size="sm" onClick={exportToCSV} className="w-full sm:w-auto">
                 <Download className="mr-2 h-4 w-4" />
                 Export CSV
               </Button>
-              <Button size="sm" onClick={() => handleOpenSheet(null)}>
+              <Button size="sm" onClick={() => handleOpenSheet(null)} className="w-full sm:w-auto">
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Add Event
               </Button>
@@ -344,9 +405,9 @@ export default function WelfareTrackerPage() {
                 {filteredEvents.length > 0 ? (
                   filteredEvents.map(({event, status}) => {
                     const { text: statusText, variant: statusVariant, icon: StatusIcon } = status;
-                    const dueDate = addDays(event.welfareDate, DUE_DAYS_CONFIG);
+                    const dueDate = addDays(event.welfareDate, followUpInterval);
                     return (
-                      <TableRow key={event.id} className="group">
+                      <TableRow key={event.id} className={cn("group", event.followUpCompleted && "bg-muted/30 opacity-60")}>
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <Avatar>
@@ -373,7 +434,7 @@ export default function WelfareTrackerPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleOpenSheet(event)}>Edit</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleOpenSheet(event)} disabled={event.followUpCompleted}>Edit</DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleToggleFollowUp(event.id)}>
                                 {event.followUpCompleted ? "Mark as Incomplete" : "Mark as Complete"}
                               </DropdownMenuItem>
