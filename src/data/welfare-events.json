@@ -1,0 +1,8 @@
+
+[
+  { "id": "EVT001", "name": "John Doe", "avatarUrl": "https://picsum.photos/100/100?a", "welfareDate": "2024-07-06T12:00:00.000Z", "followUpCompleted": false, "notes": "Discussed recent project stress.", "eventType": "Welfare Call" },
+  { "id": "EVT002", "name": "Jane Smith", "avatarUrl": "https://picsum.photos/100/100?b", "welfareDate": "2024-07-18T12:00:00.000Z", "followUpCompleted": false, "notes": "Follow up on previous incident report.", "eventType": "Welfare Visit" },
+  { "id": "EVT003", "name": "Sam Wilson", "avatarUrl": "https://picsum.photos/100/100?c", "welfareDate": "2024-07-21T12:00:00.000Z", "followUpCompleted": true, "notes": "Completed.", "eventType": "Dog Handler Welfare" },
+  { "id": "EVT004", "name": "Emily Brown", "avatarUrl": "https://picsum.photos/100/100?d", "welfareDate": "2024-07-12T12:00:00.000Z", "followUpCompleted": false, "notes": "Regular check-in scheduled.", "eventType": "Welfare Call" },
+  { "id": "EVT005", "name": "Michael Lee", "avatarUrl": "https://picsum.photos/100/100?e", "welfareDate": "2024-07-24T12:00:00.000Z", "followUpCompleted": false, "notes": "Needs assistance with a personal matter.", "eventType": "Welfare Visit" }
+]

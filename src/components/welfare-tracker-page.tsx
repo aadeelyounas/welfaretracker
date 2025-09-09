@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -13,7 +14,6 @@ import {
   PlusCircle,
   Search,
   Settings,
-  X,
 } from "lucide-react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -66,15 +66,7 @@ import { CalendarIcon } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-// --- MOCK DATA & SETTINGS ---
-const initialEvents: WelfareEvent[] = [
-  { id: "EVT001", name: "John Doe", avatarUrl: "https://picsum.photos/100/100?a", welfareDate: new Date(new Date().setDate(new Date().getDate() - 20)), followUpCompleted: false, notes: "Discussed recent project stress.", eventType: 'Welfare Call' },
-  { id: "EVT002", name: "Jane Smith", avatarUrl: "https://picsum.photos/100/100?b", welfareDate: new Date(new Date().setDate(new Date().getDate() - 8)), followUpCompleted: false, notes: "Follow up on previous incident report.", eventType: 'Welfare Visit' },
-  { id: "EVT003", name: "Sam Wilson", avatarUrl: "https://picsum.photos/100/100?c", welfareDate: new Date(new Date().setDate(new Date().getDate() - 5)), followUpCompleted: true, notes: "Completed.", eventType: 'Dog Handler Welfare' },
-  { id: "EVT004", name: "Emily Brown", avatarUrl: "https://picsum.photos/100/100?d", welfareDate: addDays(new Date(), -14), followUpCompleted: false, notes: "Regular check-in scheduled.", eventType: 'Welfare Call' },
-  { id: "EVT005", name: "Michael Lee", avatarUrl: "https://picsum.photos/100/100?e", welfareDate: new Date(new Date().setDate(new Date().getDate() - 2)), followUpCompleted: false, notes: "Needs assistance with a personal matter.", eventType: 'Welfare Visit' },
-];
+import { Skeleton } from "@/components/ui/skeleton";
 
 const badgeVariants = cva(
   "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
@@ -95,7 +87,6 @@ const badgeVariants = cva(
   }
 )
 
-// --- FORM SCHEMA ---
 const eventFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   eventType: z.enum(['Welfare Call', 'Welfare Visit', 'Dog Handler Welfare']),
@@ -107,9 +98,9 @@ const eventFormSchema = z.object({
 type EventFormValues = z.infer<typeof eventFormSchema>;
 
 export default function WelfareTrackerPage() {
-  // --- STATE MANAGEMENT ---
   const { toast } = useToast();
-  const [events, setEvents] = React.useState<WelfareEvent[]>(initialEvents);
+  const [events, setEvents] = React.useState<WelfareEvent[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState("");
   const [statusFilters, setStatusFilters] = React.useState<Set<string>>(new Set());
   const [isSheetOpen, setSheetOpen] = React.useState(false);
@@ -117,7 +108,6 @@ export default function WelfareTrackerPage() {
   const [eventToEdit, setEventToEdit] = React.useState<WelfareEvent | null>(null);
   const [eventToDelete, setEventToDelete] = React.useState<string | null>(null);
   const [followUpInterval, setFollowUpInterval] = React.useState(14);
-
 
   const form = useForm<EventFormValues>({
     resolver: zodResolver(eventFormSchema),
@@ -128,7 +118,24 @@ export default function WelfareTrackerPage() {
     }
   });
 
-  // --- LOGIC & HELPERS ---
+  const fetchEvents = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/welfare-events');
+      if (!response.ok) throw new Error('Failed to fetch events');
+      const data = await response.json();
+      setEvents(data.map((e: any) => ({...e, welfareDate: new Date(e.welfareDate)})));
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Could not fetch welfare events.' });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast]);
+
+  React.useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
+
   const getEventStatus = React.useCallback((event: WelfareEvent, interval: number) => {
     if (event.followUpCompleted) {
       return { text: "Follow-up completed", variant: "default" as StatusVariant, icon: CheckCircle2 };
@@ -164,7 +171,7 @@ export default function WelfareTrackerPage() {
       .filter(({ event, status }) => {
         const searchMatch =
           event.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          event.notes.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (event.notes || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
           event.eventType.toLowerCase().includes(searchTerm.toLowerCase());
 
         const statusMatch = statusFilters.size === 0 || Array.from(statusFilters).some(filter => statusMapping[filter]?.(status));
@@ -173,34 +180,42 @@ export default function WelfareTrackerPage() {
       })
       .sort((a, b) => a.event.followUpCompleted === b.event.followUpCompleted ? b.event.welfareDate.getTime() - a.event.welfareDate.getTime() : a.event.followUpCompleted ? 1 : -1);
   }, [events, searchTerm, statusFilters, getEventStatus, followUpInterval]);
+  
+  const handleToggleFollowUp = async (id: string) => {
+    const originalEvents = [...events];
+    const eventToToggle = events.find(e => e.id === id);
+    if (!eventToToggle) return;
 
-  // --- HANDLERS ---
-  const handleToggleFollowUp = (id: string) => {
-    setEvents(currentEvents => {
-      const event = currentEvents.find(e => e.id === id);
-      if (!event) return currentEvents;
-
-      // If marking as complete, create a new event for the next follow-up
-      if (!event.followUpCompleted) {
-        const nextWelfareDate = addDays(startOfToday(), followUpInterval);
-        const newEvent: WelfareEvent = {
-          ...event,
-          id: `EVT${String(Date.now()).slice(-4)}`, // New ID for the new event
-          welfareDate: nextWelfareDate,
-          followUpCompleted: false, // This is the new, incomplete event
-          notes: `Scheduled follow-up after completion on ${format(new Date(), 'dd MMM yyyy')}.`,
+    // Optimistically update UI
+    const updatedEvents = events.map(e => e.id === id ? { ...e, followUpCompleted: !e.followUpCompleted } : e);
+    if (!eventToToggle.followUpCompleted) {
+        // Add a placeholder for the new event
+        const placeholderNewEvent: WelfareEvent = {
+            id: 'new-placeholder',
+            name: eventToToggle.name,
+            eventType: eventToToggle.eventType,
+            welfareDate: addDays(new Date(), followUpInterval),
+            followUpCompleted: false,
+            notes: 'Scheduling next follow-up...',
+            avatarUrl: eventToToggle.avatarUrl
         };
-         const updatedCurrentEvent = { ...event, followUpCompleted: true, notes: `${event.notes}\n\nFollow-up marked complete on ${format(new Date(), 'dd MMM yyyy')}.` };
-         
-         return [...currentEvents.filter(e => e.id !== id), updatedCurrentEvent, newEvent];
+        updatedEvents.push(placeholderNewEvent);
+    }
+    setEvents(updatedEvents);
 
-      } else {
-        // If marking as incomplete, just toggle the status
-        // This scenario might need more complex logic, e.g., deleting the future event if it exists.
-        // For now, we just reopen it.
-        return currentEvents.map(e => e.id === id ? { ...e, followUpCompleted: false } : e);
-      }
-    });
+    try {
+        const response = await fetch(`/api/welfare-events/${id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'toggleFollowUp', followUpInterval }),
+        });
+        if (!response.ok) throw new Error('Failed to toggle follow-up');
+        await fetchEvents(); // Re-fetch to get the final state from the server
+        toast({ title: 'Success', description: `Follow-up status for ${eventToToggle.name} updated.` });
+    } catch (error) {
+        setEvents(originalEvents); // Revert on error
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not update follow-up status.' });
+    }
 };
 
   const handleOpenSheet = (event: WelfareEvent | null) => {
@@ -224,52 +239,80 @@ export default function WelfareTrackerPage() {
     }
     setSheetOpen(true);
   };
+  
+ const onSubmit = async (data: EventFormValues) => {
+    const method = eventToEdit ? 'PUT' : 'POST';
+    const url = eventToEdit ? `/api/welfare-events/${eventToEdit.id}` : '/api/welfare-events';
+    const originalEvents = [...events];
 
-  const onSubmit = (data: EventFormValues) => {
     try {
+      // Optimistic UI update
       if (eventToEdit) {
-        // Update
         setEvents(events.map(e => e.id === eventToEdit.id ? { ...eventToEdit, ...data } : e));
-         toast({
-          title: "Event Updated",
-          description: `Welfare event for ${data.name} has been updated.`,
-        });
       } else {
-        // Create
-        const newEvent: WelfareEvent = {
-          id: `EVT${String(Date.now()).slice(-4)}`,
+        const optimisticNewEvent: WelfareEvent = {
+          id: `temp-${Date.now()}`,
           avatarUrl: `https://picsum.photos/100/100?${Date.now()}`,
           ...data,
         };
-        setEvents([newEvent, ...events]);
-        toast({
-          title: "Event Created",
-          description: `New welfare event for ${data.name} has been logged.`,
-        });
+        setEvents([optimisticNewEvent, ...events]);
       }
       setSheetOpen(false);
-      setEventToEdit(null);
-    } catch(error) {
-       toast({
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) throw new Error('Failed to save event');
+      
+      await fetchEvents(); // Re-sync with server state
+      
+      toast({
+        title: `Event ${eventToEdit ? 'Updated' : 'Created'}`,
+        description: `Welfare event for ${data.name} has been saved.`,
+      });
+
+    } catch (error) {
+      setEvents(originalEvents); // Revert on error
+      toast({
         variant: "destructive",
         title: "Error saving event",
         description: error instanceof Error ? error.message : "An unknown error occurred.",
       });
+      setSheetOpen(true); // Re-open sheet if there was an error
+    } finally {
+      setEventToEdit(null);
     }
   };
+
 
   const handleDelete = (id: string) => {
     setEventToDelete(id);
     setAlertOpen(true);
   };
 
-  const confirmDelete = () => {
-    if (eventToDelete) {
-      setEvents(events.filter((e) => e.id !== eventToDelete));
+ const confirmDelete = async () => {
+    if (!eventToDelete) return;
+    
+    const originalEvents = [...events];
+    setEvents(events.filter((e) => e.id !== eventToDelete)); // Optimistic delete
+    
+    try {
+        const response = await fetch(`/api/welfare-events/${eventToDelete}`, {
+            method: 'DELETE',
+        });
+        if (!response.ok) throw new Error('Failed to delete event');
+        toast({ title: 'Event Deleted', description: 'The welfare event has been removed.' });
+    } catch (error) {
+        setEvents(originalEvents); // Revert on error
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not delete the event.' });
+    } finally {
+        setAlertOpen(false);
+        setEventToDelete(null);
     }
-    setAlertOpen(false);
-    setEventToDelete(null);
-  };
+};
 
   const exportToCSV = () => {
     const headers = ['ID', 'Name', 'Event Type', 'Welfare Date', 'Due Date', 'Status', 'Follow-up Completed', 'Notes'];
@@ -281,7 +324,7 @@ export default function WelfareTrackerPage() {
       `"${format(addDays(event.welfareDate, followUpInterval), 'yyyy-MM-dd')}"`,
       `"${status.text}"`,
       event.followUpCompleted,
-      `"${event.notes.replace(/"/g, '""')}"`
+      `"${(event.notes || '').replace(/"/g, '""')}"`
     ].join(','));
     
     const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows].join('\n');
@@ -402,7 +445,23 @@ export default function WelfareTrackerPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredEvents.length > 0 ? (
+                {isLoading ? (
+                  Array.from({length: 5}).map((_, i) => (
+                    <TableRow key={i}>
+                        <TableCell>
+                            <div className="flex items-center gap-3">
+                                <Skeleton className="h-10 w-10 rounded-full" />
+                                <Skeleton className="h-4 w-32" />
+                            </div>
+                        </TableCell>
+                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                        <TableCell><Skeleton className="h-6 w-32 rounded-full" /></TableCell>
+                        <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
+                    </TableRow>
+                  ))
+                ) : filteredEvents.length > 0 ? (
                   filteredEvents.map(({event, status}) => {
                     const { text: statusText, variant: statusVariant, icon: StatusIcon } = status;
                     const dueDate = addDays(event.welfareDate, followUpInterval);
@@ -436,7 +495,7 @@ export default function WelfareTrackerPage() {
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={() => handleOpenSheet(event)} disabled={event.followUpCompleted}>Edit</DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleToggleFollowUp(event.id)}>
-                                {event.followUpCompleted ? "Mark as Incomplete" : "Mark as Complete"}
+                                {event.followUpCompleted ? "Re-open Follow-up" : "Mark as Complete"}
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(event.id)}>
@@ -466,7 +525,6 @@ export default function WelfareTrackerPage() {
         </CardFooter>
       </Card>
       
-      {/* --- Add/Edit Event Sheet --- */}
       <Sheet open={isSheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent className="sm:max-w-lg">
           <SheetHeader>
@@ -596,16 +654,15 @@ export default function WelfareTrackerPage() {
                  <SheetClose asChild>
                    <Button type="button" variant="secondary">Cancel</Button>
                  </SheetClose>
-                <Button type="submit">
-                  {eventToEdit ? 'Save Changes' : 'Create Event'}
+                <Button type="submit" disabled={form.formState.isSubmitting}>
+                  {form.formState.isSubmitting ? 'Saving...' : eventToEdit ? 'Save Changes' : 'Create Event'}
                 </Button>
               </div>
             </form>
           </Form>
         </SheetContent>
       </Sheet>
-
-      {/* --- Delete Confirmation Dialog --- */}
+      
       <AlertDialog open={isAlertOpen} onOpenChange={setAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -623,5 +680,3 @@ export default function WelfareTrackerPage() {
     </>
   );
 }
-
-    
