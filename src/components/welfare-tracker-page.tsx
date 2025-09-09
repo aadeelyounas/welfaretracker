@@ -69,11 +69,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 // --- MOCK DATA & SETTINGS ---
 const initialEvents: WelfareEvent[] = [
-  { id: "EVT001", name: "John Doe", avatarUrl: "https://picsum.photos/100/100?a", welfareDate: new Date(new Date().setDate(new Date().getDate() - 20)), followUpCompleted: false, notes: "Discussed recent project stress.", eventType: 'Check-in' },
-  { id: "EVT002", name: "Jane Smith", avatarUrl: "https://picsum.photos/100/100?b", welfareDate: new Date(new Date().setDate(new Date().getDate() - 8)), followUpCompleted: false, notes: "Follow up on previous incident report.", eventType: 'Incident' },
-  { id: "EVT003", name: "Sam Wilson", avatarUrl: "https://picsum.photos/100/100?c", welfareDate: new Date(new Date().setDate(new Date().getDate() - 5)), followUpCompleted: true, notes: "Completed.", eventType: 'Support Request' },
-  { id: "EVT004", name: "Emily Brown", avatarUrl: "https://picsum.photos/100/100?d", welfareDate: addDays(new Date(), -14), followUpCompleted: false, notes: "Regular check-in scheduled.", eventType: 'Meeting' },
-  { id: "EVT005", name: "Michael Lee", avatarUrl: "https://picsum.photos/100/100?e", welfareDate: new Date(new Date().setDate(new Date().getDate() - 2)), followUpCompleted: false, notes: "Needs assistance with a personal matter.", eventType: 'Support Request' },
+  { id: "EVT001", name: "John Doe", avatarUrl: "https://picsum.photos/100/100?a", welfareDate: new Date(new Date().setDate(new Date().getDate() - 20)), followUpCompleted: false, notes: "Discussed recent project stress.", eventType: 'Welfare Call' },
+  { id: "EVT002", name: "Jane Smith", avatarUrl: "https://picsum.photos/100/100?b", welfareDate: new Date(new Date().setDate(new Date().getDate() - 8)), followUpCompleted: false, notes: "Follow up on previous incident report.", eventType: 'Welfare Visit' },
+  { id: "EVT003", name: "Sam Wilson", avatarUrl: "https://picsum.photos/100/100?c", welfareDate: new Date(new Date().setDate(new Date().getDate() - 5)), followUpCompleted: true, notes: "Completed.", eventType: 'Dog Handler Welfare' },
+  { id: "EVT004", name: "Emily Brown", avatarUrl: "https://picsum.photos/100/100?d", welfareDate: addDays(new Date(), -14), followUpCompleted: false, notes: "Regular check-in scheduled.", eventType: 'Welfare Call' },
+  { id: "EVT005", name: "Michael Lee", avatarUrl: "https://picsum.photos/100/100?e", welfareDate: new Date(new Date().setDate(new Date().getDate() - 2)), followUpCompleted: false, notes: "Needs assistance with a personal matter.", eventType: 'Welfare Visit' },
 ];
 
 const badgeVariants = cva(
@@ -98,7 +98,7 @@ const badgeVariants = cva(
 // --- FORM SCHEMA ---
 const eventFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  eventType: z.enum(['Check-in', 'Incident', 'Support Request', 'Meeting']),
+  eventType: z.enum(['Welfare Call', 'Welfare Visit', 'Dog Handler Welfare']),
   welfareDate: z.date({ required_error: "A welfare date is required." }),
   notes: z.string().optional(),
   followUpCompleted: z.boolean().default(false),
@@ -503,10 +503,9 @@ export default function WelfareTrackerPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="Check-in">Check-in</SelectItem>
-                          <SelectItem value="Incident">Incident</SelectItem>
-                          <SelectItem value="Support Request">Support Request</SelectItem>
-                          <SelectItem value="Meeting">Meeting</SelectItem>
+                          <SelectItem value="Welfare Call">Welfare Call</SelectItem>
+                          <SelectItem value="Welfare Visit">Welfare Visit</SelectItem>
+                          <SelectItem value="Dog Handler Welfare">Dog Handler Welfare</SelectItem>
                         </SelectContent>
                       </Select>
                     <FormMessage />
@@ -624,3 +623,5 @@ export default function WelfareTrackerPage() {
     </>
   );
 }
+
+    
