@@ -24,6 +24,7 @@ import { cva } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { LogoutButton } from "@/components/logout-button";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -432,16 +433,40 @@ export default function WelfareTrackerPage() {
   return (
     <>
       <Card>
-        <CardHeader>
+        <CardHeader className="bg-gradient-to-r from-purple-600 to-pink-600 text-white border-b">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-            <div>
-              <CardTitle className="text-2xl font-headline">Welfare Tracker</CardTitle>
-              <CardDescription>Manage and monitor welfare events for your team.</CardDescription>
+            <div className="flex items-center gap-4">
+              <div className="flex-shrink-0">
+                <img 
+                  src="https://ashridge-group-com.nimbus-cdn.uk/wp-content/uploads/2018/10/logo-ash-grp.png"
+                  alt="Ashridge Group"
+                  className="h-14 w-auto brightness-0 invert"
+                  onError={(e) => {
+                    // Fallback to local logo if CDN fails
+                    e.currentTarget.src = '/ashridge-logo.png';
+                    e.currentTarget.onerror = () => {
+                      // If local logo also fails, hide the image
+                      e.currentTarget.style.display = 'none';
+                    };
+                  }}
+                />
+              </div>
+              <div>
+                <CardTitle className="text-2xl font-headline text-white">
+                  <span className="font-bold">Ashridge Group</span>
+                  <span className="block text-lg font-normal text-purple-100 mt-1">
+                    Employee Welfare Tracker
+                  </span>
+                </CardTitle>
+                <CardDescription className="mt-2 text-purple-100">
+                  Comprehensive welfare monitoring and management system
+                </CardDescription>
+              </div>
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="w-full sm:w-auto">
+                  <Button variant="secondary" size="sm" className="w-full sm:w-auto bg-white/20 hover:bg-white/30 border-white/30 text-white">
                     <Settings className="mr-2 h-4 w-4" />
                     Settings
                   </Button>
@@ -470,7 +495,7 @@ export default function WelfareTrackerPage() {
               </Popover>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="w-full sm:w-auto">
+                  <Button variant="secondary" size="sm" className="w-full sm:w-auto bg-white/20 hover:bg-white/30 border-white/30 text-white">
                     <Download className="mr-2 h-4 w-4" />
                     Export
                   </Button>
@@ -480,7 +505,7 @@ export default function WelfareTrackerPage() {
                   <DropdownMenuItem onClick={exportToJSON}>Export to JSON</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-               <Button variant="outline" size="sm" onClick={handleImportClick} className="w-full sm:w-auto">
+               <Button variant="secondary" size="sm" onClick={handleImportClick} className="w-full sm:w-auto bg-white/20 hover:bg-white/30 border-white/30 text-white">
                  <Upload className="mr-2 h-4 w-4" />
                  Import JSON
                </Button>
@@ -491,10 +516,11 @@ export default function WelfareTrackerPage() {
                 className="hidden"
                 accept="application/json"
               />
-              <Button size="sm" onClick={() => handleOpenSheet(null)} className="w-full sm:w-auto">
+              <Button size="sm" onClick={() => handleOpenSheet(null)} className="w-full sm:w-auto bg-white text-purple-600 hover:bg-white/90">
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Add Event
               </Button>
+              <LogoutButton />
             </div>
           </div>
           <div className="flex items-center gap-2 pt-4">

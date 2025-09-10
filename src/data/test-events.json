@@ -1,0 +1,29 @@
+[
+  {
+    "id": "1",
+    "name": "John Smith",
+    "avatarUrl": "https://picsum.photos/100/100?1",
+    "eventType": "Welfare Call",
+    "welfareDate": "2025-09-10",
+    "followUpCompleted": false,
+    "notes": "Initial welfare call - feeling good"
+  },
+  {
+    "id": "2", 
+    "name": "Jane Doe",
+    "avatarUrl": "https://picsum.photos/100/100?2",
+    "eventType": "Welfare Visit",
+    "welfareDate": "2025-09-08",
+    "followUpCompleted": true,
+    "notes": "Home visit completed - all well"
+  },
+  {
+    "id": "3",
+    "name": "Mike Johnson", 
+    "avatarUrl": "https://picsum.photos/100/100?3",
+    "eventType": "Dog Handler Welfare",
+    "welfareDate": "2025-09-05",
+    "followUpCompleted": false,
+    "notes": "Special welfare check for dog handler"
+  }
+]

@@ -10,4 +10,15 @@ export interface WelfareEvent {
   notes: string;
 }
 
+export interface User {
+  id: string;
+  username: string;
+  password: string;
+  role: string;
+  name: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
     
