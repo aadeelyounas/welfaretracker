@@ -48,24 +48,33 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50 flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{
+      background: 'linear-gradient(135deg, #9e1f62 0%, #b02470 25%, #8a1b58 75%, #6d1545 100%)'
+    }}>
       <div className="w-full max-w-md">
-        {/* Logo */}
+        {/* Logo with Brand Background */}
         <div className="text-center mb-8">
-          <img 
-            src="https://ashridge-group-com.nimbus-cdn.uk/wp-content/uploads/2018/10/logo-ash-grp.png" 
-            alt="Ashridge Group" 
-            className="h-16 mx-auto mb-4"
-            onError={(e) => { e.currentTarget.style.display = 'none'; }}
-          />
-          <h1 className="text-2xl font-bold text-purple-800">Ashridge Group</h1>
-          <p className="text-gray-600 text-sm">Welfare Tracker System</p>
+          <div className="mb-6 flex justify-center">
+            <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-6 border border-white/20 shadow-2xl">
+              <img 
+                src="/ashridge-logo.png" 
+                alt="Ashridge Group" 
+                className="h-20 w-auto object-contain filter drop-shadow-lg"
+                onError={(e) => { 
+                  // Fallback to external logo if local logo fails
+                  e.currentTarget.src = "https://ashridge-group-com.nimbus-cdn.uk/wp-content/uploads/2018/10/logo-ash-grp.png";
+                }}
+              />
+            </div>
+          </div>
+          <h1 className="text-3xl font-bold text-white drop-shadow-lg">Ashridge Group</h1>
+          <p className="text-white/80 text-lg drop-shadow-sm">Welfare Tracker System</p>
         </div>
 
         {/* Login Card */}
-        <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+        <Card className="shadow-2xl border-0 bg-white/95 backdrop-blur-sm">
           <CardHeader className="text-center">
-            <CardTitle className="text-xl text-gray-800">Sign In</CardTitle>
+            <CardTitle className="text-xl" style={{ color: '#9e1f62' }}>Sign In</CardTitle>
             <CardDescription>
               Enter your credentials to access the welfare tracker
             </CardDescription>
@@ -73,7 +82,7 @@ export default function LoginPage() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
+                <Label htmlFor="username" style={{ color: '#9e1f62' }}>Username</Label>
                 <Input
                   id="username"
                   type="text"
@@ -84,12 +93,16 @@ export default function LoginPage() {
                   }
                   required
                   disabled={isLoading}
-                  className="border-purple-200 focus:border-purple-400"
+                  className="border-2 focus:ring-2"
+                  style={{ 
+                    borderColor: '#9e1f62',
+                    '--tw-ring-color': '#9e1f62'
+                  } as any}
                 />
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" style={{ color: '#9e1f62' }}>Password</Label>
                 <Input
                   id="password"
                   type="password"
@@ -100,7 +113,11 @@ export default function LoginPage() {
                   }
                   required
                   disabled={isLoading}
-                  className="border-purple-200 focus:border-purple-400"
+                  className="border-2 focus:ring-2"
+                  style={{ 
+                    borderColor: '#9e1f62',
+                    '--tw-ring-color': '#9e1f62'
+                  } as any}
                 />
               </div>
 
@@ -113,7 +130,10 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                className="w-full text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200"
+                style={{ 
+                  background: 'linear-gradient(135deg, #9e1f62 0%, #b02470 100%)'
+                }}
               >
                 {isLoading ? (
                   <>
@@ -132,7 +152,7 @@ export default function LoginPage() {
         </Card>
 
         {/* Footer */}
-        <div className="text-center mt-8 text-sm text-gray-500">
+        <div className="text-center mt-8 text-sm text-white/80">
           <p>Authorized personnel only</p>
           <p className="mt-1">© 2025 Ashridge Group</p>
         </div>

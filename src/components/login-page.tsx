@@ -122,7 +122,11 @@ export default function LoginPage() {
 
             <Button 
               type="submit" 
-              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+              className="w-full text-white font-medium"
+              style={{ 
+                background: 'linear-gradient(135deg, #9e1f62 0%, #b02470 100%)',
+                '--tw-hover-bg': 'linear-gradient(135deg, #8a1b58 0%, #9e1f62 100%)'
+              } as any}
               disabled={isLoading}
             >
               {isLoading ? (

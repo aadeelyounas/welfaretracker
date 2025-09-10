@@ -13,15 +13,7 @@ export interface User {
 
 export interface Employee {
   id: string;
-  employeeId: string;
   name: string;
-  email?: string;
-  phone?: string;
-  department?: string;
-  position?: string;
-  lineManager?: string;
-  avatarUrl?: string;
-  welfareFrequencyDays: number;
   active: boolean;
   createdAt: string;
   updatedAt?: string;

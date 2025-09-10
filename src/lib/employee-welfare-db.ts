@@ -157,6 +157,20 @@ export async function updateEmployee(id: string, updates: Partial<Employee>): Pr
   }
 }
 
+export async function deleteEmployee(id: string): Promise<boolean> {
+  try {
+    const result = await query(`
+      DELETE FROM employees 
+      WHERE id = $1
+    `, [id]);
+    
+    return result.rowCount > 0;
+  } catch (error) {
+    console.error('Error deleting employee:', error);
+    throw error;
+  }
+}
+
 // =================== WELFARE SCHEDULE FUNCTIONS ===================
 
 export async function getWelfareScheduleByEmployeeId(employeeId: string): Promise<WelfareSchedule | null> {
@@ -246,7 +260,7 @@ export async function getWelfareActivitiesByEmployeeId(employeeId: string, limit
   }
 }
 
-export async function getAllWelfareActivities(limit: number = 50): Promise<WelfareActivity[]> {
+export async function getAllWelfareActivities(limit: number = 50, offset: number = 0): Promise<WelfareActivity[]> {
   try {
     const result = await query(`
       SELECT 
@@ -259,8 +273,8 @@ export async function getAllWelfareActivities(limit: number = 50): Promise<Welfa
       FROM welfare_activities wa
       JOIN employees e ON wa.employee_id = e.id
       ORDER BY wa.activity_date DESC, wa.created_at DESC
-      LIMIT $1
-    `, [limit]);
+      LIMIT $1 OFFSET $2
+    `, [limit, offset]);
     
     return result.rows.map((row: any) => ({
       id: row.id,

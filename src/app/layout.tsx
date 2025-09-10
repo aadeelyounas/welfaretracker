@@ -5,6 +5,13 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'Ashridge Group - Welfare Tracker',
   description: 'Employee welfare tracking system by Ashridge Group.',
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/favicon.png', type: 'image/png' },
+    ],
+    apple: '/favicon.png',
+  },
 };
 
 export default function RootLayout({
@@ -18,13 +25,18 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,701&display=swap" rel="stylesheet" />
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href="/favicon.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/favicon.png" />
       </head>
-      <body className="font-body antialiased h-full bg-gradient-to-br from-purple-50 to-pink-50">
+      <body className="font-body antialiased h-full" style={{ 
+        background: 'linear-gradient(135deg, rgba(158, 31, 98, 0.05) 0%, rgba(176, 36, 112, 0.08) 50%, rgba(138, 27, 88, 0.03) 100%)' 
+      }}>
         <div className="min-h-screen flex flex-col">
           <main className="flex-1 p-4">
             {children}
           </main>
-          <footer className="bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 px-6">
+          <footer className="text-white py-4 px-6" style={{ background: 'linear-gradient(135deg, #9e1f62 0%, #b02470 50%, #8a1b58 100%)' }}>
             <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <img 
@@ -34,7 +46,7 @@ export default function RootLayout({
                 />
                 <span className="text-sm font-medium">Ashridge Group</span>
               </div>
-              <div className="text-xs text-purple-100 text-center sm:text-right">
+              <div className="text-xs text-white/80 text-center sm:text-right">
                 <p>Employee Welfare Management System</p>
                 <p>© {new Date().getFullYear()} Ashridge Group. All rights reserved.</p>
               </div>

@@ -26,7 +26,7 @@ export function LogoutButton() {
       variant="outline"
       size="sm"
       onClick={handleLogout}
-      className="flex items-center gap-2 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700"
+      className="flex items-center gap-2 bg-white/20 border-white/30 text-white hover:bg-white/30 hover:border-white/50 font-medium backdrop-blur-sm"
     >
       <LogOut className="h-4 w-4" />
       Logout

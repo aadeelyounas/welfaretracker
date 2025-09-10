@@ -10,31 +10,32 @@
     --card-foreground: 225 28% 15%;
     --popover: 0 0% 100%;
     --popover-foreground: 225 28% 15%;
-    --primary: 315 45% 45%; /* Ashridge Purple */
+    --primary: 315 45% 37%; /* Ashridge Brand #9e1f62 */
     --primary-foreground: 0 0% 100%;
     --secondary: 210 20% 88%;
     --secondary-foreground: 225 28% 26%;
     --muted: 210 20% 88%;
     --muted-foreground: 225 28% 45%;
-    --accent: 315 55% 55%; /* Ashridge Accent Purple */
+    --accent: 315 49% 43%; /* Ashridge Accent #b02470 */
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 315 45% 37%; /* Use brand color for destructive */
     --destructive-foreground: 0 0% 98%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 210 40% 98%;
+    --warning: 315 49% 43%; /* Use brand color for warning */
+    --warning-foreground: 0 0% 98%;
     --border: 0 0% 89.8%;
     --input: 0 0% 89.8%;
-    --ring: 315 45% 45%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --ring: 315 45% 37%; /* Ashridge brand for focus rings */
+    --chart-1: 315 45% 37%; /* Ashridge primary */
+    --chart-2: 315 49% 43%; /* Ashridge accent */
+    --chart-3: 315 45% 30%; /* Ashridge dark */
+    --chart-4: 315 40% 50%; /* Ashridge light */
+    --chart-5: 315 35% 25%; /* Ashridge darker */
     --radius: 0.5rem;
-    /* Ashridge Group Brand Colors */
-    --ashridge-purple: 315 45% 45%;
-    --ashridge-light-purple: 315 55% 55%;
-    --ashridge-dark-purple: 315 45% 35%;
+    /* Official Ashridge Group Brand Colors */
+    --ashridge-primary: 315 45% 37%; /* #9e1f62 */
+    --ashridge-accent: 315 49% 43%; /* #b02470 */
+    --ashridge-dark: 315 45% 30%; /* #8a1b58 */
+    --ashridge-darker: 315 45% 23%; /* #6d1545 */
     --ashridge-gray: 210 15% 50%;
   }
 

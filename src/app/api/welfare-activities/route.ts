@@ -1,14 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllWelfareActivities, createWelfareActivity } from '@/lib/employee-welfare-db';
+import { getAllWelfareActivities, createWelfareActivity, query } from '@/lib/employee-welfare-db';
 import { WelfareType } from '@/lib/employee-welfare-types';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '50');
+    const offset = parseInt(searchParams.get('offset') || '0');
+    const includeTotal = searchParams.get('includeTotal') === 'true';
     
-    const activities = await getAllWelfareActivities(limit);
-    return NextResponse.json(activities);
+    if (includeTotal) {
+      // Get both activities and total count
+      const [activities, totalResult] = await Promise.all([
+        getAllWelfareActivities(limit, offset),
+        query('SELECT COUNT(*) as count FROM welfare_activities', [])
+      ]);
+      
+      return NextResponse.json({
+        activities,
+        total: parseInt(totalResult.rows[0].count),
+        limit,
+        offset
+      });
+    } else {
+      const activities = await getAllWelfareActivities(limit, offset);
+      return NextResponse.json(activities);
+    }
   } catch (error) {
     console.error('Error fetching welfare activities:', error);
     return NextResponse.json(
