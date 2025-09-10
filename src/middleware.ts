@@ -61,4 +61,5 @@ export const config = {
      */
     '/((?!_next/static|_next/image|favicon.ico|ashridge-logo.png|.*\\.png|.*\\.jpg|.*\\.jpeg|.*\\.gif|.*\\.svg).*)',
   ],
+  runtime: 'nodejs',
 };

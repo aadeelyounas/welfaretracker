@@ -3,6 +3,8 @@ import { sign, verify } from 'jsonwebtoken';
 import { getUserByUsername } from '../../../lib/db';
 import bcrypt from 'bcryptjs';
 
+export const runtime = 'nodejs';
+
 const JWT_SECRET = process.env.JWT_SECRET || 'ashridge-welfare-tracker-secret-key';
 
 export async function POST(request: NextRequest) {
