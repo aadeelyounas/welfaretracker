@@ -47,106 +47,70 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center space-y-4">
-          <div className="flex justify-center">
-            <img 
-              src="https://ashridge-group-com.nimbus-cdn.uk/wp-content/uploads/2018/10/logo-ash-grp.png"
-              alt="Ashridge Group"
-              className="h-16 w-auto"
-              onError={(e) => {
-                e.currentTarget.src = '/ashridge-logo.png';
-                e.currentTarget.onerror = () => {
-                  e.currentTarget.style.display = 'none';
-                };
-              }}
-            />
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, rgba(158, 31, 98, 0.05) 0%, rgba(176, 36, 112, 0.08) 50%, rgba(138, 27, 88, 0.03) 100%)' }}>
+      <Card className="w-full max-w-md mx-auto shadow-2xl border-2" style={{ borderColor: '#9e1f62' }}>
+        <CardHeader className="text-center text-white rounded-t-lg" style={{ background: 'linear-gradient(135deg, #9e1f62 0%, #b02470 50%, #8a1b58 100%)' }}>
+          <div className="mx-auto bg-white/20 rounded-full p-3 w-fit mb-4">
+            <Lock className="h-8 w-8" />
           </div>
-          <div>
-            <CardTitle className="text-2xl font-bold text-purple-700">
-              Ashridge Group
-            </CardTitle>
-            <CardDescription className="mt-2">
-              Welfare Tracker - Secure Access
-            </CardDescription>
-          </div>
+          <CardTitle className="text-2xl font-bold">Employee Welfare Tracker</CardTitle>
+          <CardDescription className="text-white/80">
+            Secure login for Ashridge Group personnel
+          </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
+        <CardContent className="p-6 sm:p-8 space-y-6">
+          <form onSubmit={handleLogin} className="space-y-6">
+            {error && (
+              <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-800">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="username" style={{ color: '#9e1f62' }}>Username</Label>
               <Input
                 id="username"
                 type="text"
+                placeholder="Enter your username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter your username"
                 required
-                autoComplete="username"
+                className="border focus:border" 
+                style={{ borderColor: '#9e1f62', '--tw-ring-color': '#9e1f62' } as any}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" style={{ color: '#9e1f62' }}>Password</Label>
               <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
                   required
-                  autoComplete="current-password"
+                  className="border focus:border" 
+                  style={{ borderColor: '#9e1f62', '--tw-ring-color': '#9e1f62' } as any}
                 />
                 <Button
                   type="button"
                   variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  size="icon"
+                  className="absolute inset-y-0 right-0 h-full"
                   onClick={() => setShowPassword(!showPassword)}
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
+                  {showPassword ? <EyeOff className="h-5 w-5 text-gray-500" /> : <Eye className="h-5 w-5 text-gray-500" />}
                 </Button>
               </div>
             </div>
-            
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
             <Button 
               type="submit" 
-              className="w-full text-white font-medium"
-              style={{ 
-                background: 'linear-gradient(135deg, #9e1f62 0%, #b02470 100%)',
-                '--tw-hover-bg': 'linear-gradient(135deg, #8a1b58 0%, #9e1f62 100%)'
-              } as any}
+              className="w-full text-white font-bold py-3 text-base" 
               disabled={isLoading}
+              style={{ background: 'linear-gradient(135deg, #9e1f62 0%, #b02470 100%)' }}
             >
-              {isLoading ? (
-                <>
-                  <Lock className="mr-2 h-4 w-4 animate-spin" />
-                  Authenticating...
-                </>
-              ) : (
-                <>
-                  <Lock className="mr-2 h-4 w-4" />
-                  Sign In
-                </>
-              )}
+              {isLoading ? "Signing In..." : "Sign In"}
             </Button>
           </form>
-          
-          <div className="mt-6 text-center text-sm text-gray-600">
-            <p>Authorized personnel only</p>
-            <p className="text-xs mt-1">© 2025 Ashridge Group</p>
-          </div>
         </CardContent>
       </Card>
     </div>

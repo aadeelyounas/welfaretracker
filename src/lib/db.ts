@@ -45,26 +45,193 @@ export async function query(text: string, params?: any[]): Promise<any> {
   }
 }
 
-// Welfare Events Database Functions
+// Modern Employee Functions
+export async function getAllEmployees(): Promise<any[]> {
+  try {
+    const result = await query(`
+      SELECT 
+        e.id::text,
+        e.name,
+        e.department,
+        e.position,
+        e.email,
+        e.phone,
+        e.active,
+        e.created_at as "createdAt",
+        e.updated_at as "updatedAt"
+      FROM employees e
+      WHERE e.active = true
+      ORDER BY e.name
+    `);
+    return result.rows;
+  } catch (error) {
+    console.error('Error fetching employees:', error);
+    throw error;
+  }
+}
+
+export async function createEmployee(employee: Omit<any, 'id'>): Promise<any> {
+  try {
+    const result = await query(`
+      INSERT INTO employees (name, department, position, email, phone)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING 
+        id::text, name, department, position, email, phone, active,
+        created_at as "createdAt", updated_at as "updatedAt"
+    `, [
+      employee.name,
+      employee.department || null,
+      employee.position || null,
+      employee.email || null,
+      employee.phone || null
+    ]);
+    return result.rows[0];
+  } catch (error) {
+    console.error('Error creating employee:', error);
+    throw error;
+  }
+}
+
+export async function updateEmployee(id: string, updates: any): Promise<any | null> {
+  try {
+    const result = await query(`
+      UPDATE employees 
+      SET 
+        name = COALESCE($2, name),
+        department = COALESCE($3, department),
+        position = COALESCE($4, position),
+        email = COALESCE($5, email),
+        phone = COALESCE($6, phone),
+        active = COALESCE($7, active)
+      WHERE id = $1
+      RETURNING 
+        id::text, name, department, position, email, phone, active,
+        created_at as "createdAt", updated_at as "updatedAt"
+    `, [
+      id,
+      updates.name,
+      updates.department,
+      updates.position,
+      updates.email,
+      updates.phone,
+      updates.active
+    ]);
+    return result.rows.length > 0 ? result.rows[0] : null;
+  } catch (error) {
+    console.error('Error updating employee:', error);
+    throw error;
+  }
+}
+
+export async function deleteEmployee(id: string): Promise<boolean> {
+  try {
+    const result = await query(`
+      UPDATE employees SET active = false WHERE id = $1
+    `, [id]);
+    return result.rowCount > 0;
+  } catch (error) {
+    console.error('Error deleting employee:', error);
+    throw error;
+  }
+}
+
+// Modern Welfare Activity Functions
 export async function getAllWelfareEvents(): Promise<WelfareEvent[]> {
   try {
     const result = await query(`
       SELECT 
-        id::text, name, avatar_url as "avatarUrl", event_type as "eventType",
-        welfare_date as "welfareDate", follow_up_completed as "followUpCompleted", notes,
-        created_at as "createdAt", updated_at as "updatedAt"
-      FROM welfare_events 
-      ORDER BY welfare_date DESC, created_at DESC
+        id::text, 
+        employee_id as "employeeId",
+        welfare_type as "eventType",
+        activity_date as "welfareDate",
+        activity_date as "dueDate",
+        status,
+        'positive' as outcome,
+        conducted_by as "conductedBy",
+        conducted_by as "conductedByName",
+        notes,
+        created_at as "createdAt",
+        updated_at as "updatedAt",
+        -- Legacy fields for backward compatibility
+        '' as name,
+        '' as "avatarUrl"
+      FROM welfare_activities 
+      ORDER BY activity_date DESC, created_at DESC
     `);
     
     return result.rows.map((row: any) => ({
       ...row,
       welfareDate: new Date(row.welfareDate),
+      dueDate: row.dueDate ? new Date(row.dueDate) : new Date(row.welfareDate),
       avatarUrl: row.avatarUrl || '',
       notes: row.notes || '',
+      // Legacy compatibility
+      followUpCompleted: row.status === 'completed'
     }));
   } catch (error) {
-    console.error('Error fetching welfare events:', error);
+    console.error('Error fetching welfare activities:', error);
+    throw error;
+  }
+}
+
+export async function createWelfareEvent(event: Omit<WelfareEvent, 'id'>): Promise<WelfareEvent> {
+  try {
+    const result = await query(`
+      INSERT INTO welfare_activities (
+        employee_id, welfare_type, activity_date, status, 
+        notes, conducted_by
+      ) VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING 
+        id::text,
+        employee_id as "employeeId",
+        welfare_type as "eventType",
+        activity_date as "welfareDate",
+        activity_date as "dueDate",
+        status,
+        notes,
+        conducted_by as "conductedBy",
+        conducted_by as "conductedByName",
+        created_at as "createdAt",
+        updated_at as "updatedAt"
+    `, [
+      event.employeeId,
+      event.eventType,
+      event.welfareDate.toISOString().split('T')[0], // Convert to date string
+      event.status || 'completed',
+      event.notes || null,
+      event.conductedBy || null
+    ]);
+    
+    const row = result.rows[0];
+    
+    // Fetch employee name if not provided
+    let employeeName = '';
+    if (row.employeeId) {
+      const employeeResult = await query(`
+        SELECT name, department FROM employees WHERE id = $1
+      `, [row.employeeId]);
+      
+      if (employeeResult.rows.length > 0) {
+        employeeName = employeeResult.rows[0].name;
+        row.employeeName = employeeResult.rows[0].name;
+        row.department = employeeResult.rows[0].department;
+        row.name = employeeResult.rows[0].name;
+      }
+    }
+    
+    return {
+      ...row,
+      welfareDate: new Date(row.welfareDate),
+      dueDate: row.dueDate ? new Date(row.dueDate) : new Date(row.welfareDate),
+      avatarUrl: '',
+      notes: row.notes || '',
+      outcome: 'positive',
+      name: employeeName,
+      // Legacy compatibility
+      followUpCompleted: row.status === 'completed'
+    };
+  } catch (error) {
+    console.error('Error creating welfare activity:', error);
     throw error;
   }
 }
@@ -73,11 +240,26 @@ export async function getWelfareEventById(id: string): Promise<WelfareEvent | nu
   try {
     const result = await query(`
       SELECT 
-        id::text, name, avatar_url as "avatarUrl", event_type as "eventType",
-        welfare_date as "welfareDate", follow_up_completed as "followUpCompleted", notes,
-        created_at as "createdAt", updated_at as "updatedAt"
-      FROM welfare_events 
-      WHERE id = $1
+        wa.id::text,
+        wa.employee_id as "employeeId",
+        e.name as "employeeName",
+        e.department,
+        wa.welfare_type as "eventType",
+        wa.activity_date as "welfareDate",
+        wa.activity_date as "dueDate",
+        wa.status,
+        'positive' as outcome,
+        wa.notes,
+        wa.conducted_by as "conductedBy",
+        wa.conducted_by as "conductedByName",
+        wa.created_at as "createdAt",
+        wa.updated_at as "updatedAt",
+        -- Legacy fields for backward compatibility
+        '' as name,
+        '' as "avatarUrl"
+      FROM welfare_activities wa
+      LEFT JOIN employees e ON wa.employee_id = e.id
+      WHERE wa.id = $1
     `, [id]);
     
     if (result.rows.length === 0) return null;
@@ -86,100 +268,74 @@ export async function getWelfareEventById(id: string): Promise<WelfareEvent | nu
     return {
       ...row,
       welfareDate: new Date(row.welfareDate),
+      dueDate: row.dueDate ? new Date(row.dueDate) : new Date(row.welfareDate),
+      // Legacy compatibility
+      name: row.employeeName || row.name,
       avatarUrl: row.avatarUrl || '',
-      notes: row.notes || '',
+      followUpCompleted: row.status === 'completed'
     };
   } catch (error) {
-    console.error('Error fetching welfare event by ID:', error);
-    throw error;
-  }
-}
-
-export async function createWelfareEvent(event: Omit<WelfareEvent, 'id'>): Promise<WelfareEvent> {
-  try {
-    const result = await query(`
-      INSERT INTO welfare_events (
-        name, avatar_url, event_type, welfare_date, follow_up_completed, notes
-      ) VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING 
-        id::text, name, avatar_url as "avatarUrl", event_type as "eventType",
-        welfare_date as "welfareDate", follow_up_completed as "followUpCompleted", notes,
-        created_at as "createdAt", updated_at as "updatedAt"
-    `, [
-      event.name,
-      event.avatarUrl || null,
-      event.eventType,
-      event.welfareDate.toISOString().split('T')[0], // Convert to date string
-      event.followUpCompleted || false,
-      event.notes || null
-    ]);
-    
-    const row = result.rows[0];
-    return {
-      ...row,
-      welfareDate: new Date(row.welfareDate),
-      avatarUrl: row.avatarUrl || '',
-      notes: row.notes || '',
-    };
-  } catch (error) {
-    console.error('Error creating welfare event:', error);
+    console.error('Error fetching welfare activity by ID:', error);
     throw error;
   }
 }
 
 export async function updateWelfareEvent(id: string, updates: Partial<WelfareEvent>): Promise<WelfareEvent | null> {
   try {
-    const setParts: string[] = [];
-    const values: any[] = [];
-    let paramIndex = 1;
-
-    // Build dynamic SET clause
-    Object.entries(updates).forEach(([key, value]) => {
-      if (key === 'id') return;
-      
-      const dbColumn = key === 'avatarUrl' ? 'avatar_url' 
-                    : key === 'eventType' ? 'event_type'
-                    : key === 'welfareDate' ? 'welfare_date'
-                    : key === 'followUpCompleted' ? 'follow_up_completed'
-                    : key;
-      
-      setParts.push(`${dbColumn} = $${paramIndex++}`);
-      
-      // Convert Date to string for welfare_date
-      if (key === 'welfareDate' && value instanceof Date) {
-        values.push(value.toISOString().split('T')[0]);
-      } else {
-        values.push(value);
-      }
-    });
-
-    if (setParts.length === 0) {
-      return await getWelfareEventById(id);
-    }
-
-    values.push(id); // Add ID for WHERE clause
-
     const result = await query(`
-      UPDATE welfare_events 
-      SET ${setParts.join(', ')}
-      WHERE id = $${paramIndex}
+      UPDATE welfare_activities 
+      SET 
+        welfare_type = COALESCE($2, welfare_type),
+        activity_date = COALESCE($3, activity_date),
+        status = COALESCE($4, status),
+        notes = COALESCE($5, notes),
+        conducted_by = COALESCE($6, conducted_by),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
       RETURNING 
-        id::text, name, avatar_url as "avatarUrl", event_type as "eventType",
-        welfare_date as "welfareDate", follow_up_completed as "followUpCompleted", notes,
-        created_at as "createdAt", updated_at as "updatedAt"
-    `, values);
+        id::text,
+        employee_id as "employeeId",
+        welfare_type as "eventType",
+        activity_date as "welfareDate",
+        activity_date as "dueDate",
+        status,
+        notes,
+        conducted_by as "conductedBy",
+        conducted_by as "conductedByName",
+        created_at as "createdAt",
+        updated_at as "updatedAt"
+    `, [
+      id,
+      updates.eventType,
+      updates.welfareDate,
+      updates.status,
+      updates.notes,
+      updates.conductedBy
+    ]);
     
     if (result.rows.length === 0) return null;
     
     const row = result.rows[0];
+    
+    // Fetch employee name
+    const employeeResult = await query(`
+      SELECT name, department FROM employees WHERE id = $1
+    `, [row.employeeId]);
+    
     return {
       ...row,
       welfareDate: new Date(row.welfareDate),
-      avatarUrl: row.avatarUrl || '',
-      notes: row.notes || '',
+      dueDate: new Date(row.dueDate),
+      outcome: 'positive',
+      avatarUrl: '',
+      employeeName: employeeResult.rows[0]?.name,
+      department: employeeResult.rows[0]?.department,
+      // Legacy compatibility
+      name: employeeResult.rows[0]?.name,
+      followUpCompleted: row.status === 'completed'
     };
   } catch (error) {
-    console.error('Error updating welfare event:', error);
+    console.error('Error updating welfare activity:', error);
     throw error;
   }
 }
@@ -187,12 +343,11 @@ export async function updateWelfareEvent(id: string, updates: Partial<WelfareEve
 export async function deleteWelfareEvent(id: string): Promise<boolean> {
   try {
     const result = await query(`
-      DELETE FROM welfare_events WHERE id = $1
+      DELETE FROM welfare_activities WHERE id = $1
     `, [id]);
-    
     return result.rowCount > 0;
   } catch (error) {
-    console.error('Error deleting welfare event:', error);
+    console.error('Error deleting welfare activity:', error);
     throw error;
   }
 }

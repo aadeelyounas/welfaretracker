@@ -1,5 +1,5 @@
-import WelfareTrackerPage from '@/components/welfare-tracker-page'
+import { EmployeeWelfareTracker } from '@/components/employee-welfare-tracker';
 
 export default function DashboardPage() {
-  return <WelfareTrackerPage />
+  return <EmployeeWelfareTracker />;
 }

@@ -33,25 +33,9 @@ export default function RootLayout({
         background: 'linear-gradient(135deg, rgba(158, 31, 98, 0.05) 0%, rgba(176, 36, 112, 0.08) 50%, rgba(138, 27, 88, 0.03) 100%)' 
       }}>
         <div className="min-h-screen flex flex-col">
-          <main className="flex-1 p-4">
+          <main className="flex-1">
             {children}
           </main>
-          <footer className="text-white py-4 px-6" style={{ background: 'linear-gradient(135deg, #9e1f62 0%, #b02470 50%, #8a1b58 100%)' }}>
-            <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <img 
-                  src="https://ashridge-group-com.nimbus-cdn.uk/wp-content/uploads/2018/10/logo-ash-grp.png"
-                  alt="Ashridge Group"
-                  className="h-8 w-auto brightness-0 invert"
-                />
-                <span className="text-sm font-medium">Ashridge Group</span>
-              </div>
-              <div className="text-xs text-white/80 text-center sm:text-right">
-                <p>Employee Welfare Management System</p>
-                <p>© {new Date().getFullYear()} Ashridge Group. All rights reserved.</p>
-              </div>
-            </div>
-          </footer>
         </div>
         <Toaster />
       </body>
