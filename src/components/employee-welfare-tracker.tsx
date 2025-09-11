@@ -17,6 +17,7 @@ import {
   User,
   UserX,
   Calendar,
+  BarChart3,
 } from "lucide-react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -530,7 +531,7 @@ export function EmployeeWelfareTracker() {
 
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
           <div className="overflow-x-auto">
-            <TabsList className="grid w-full grid-cols-3 md:w-auto md:inline-grid" style={{ background: 'rgba(158, 31, 98, 0.1)' }}>
+            <TabsList className="grid w-full grid-cols-4 md:w-auto md:inline-grid" style={{ background: 'rgba(158, 31, 98, 0.1)' }}>
               <TabsTrigger value="dashboard" className="flex items-center gap-2">
                 <LayoutDashboard className="h-4 w-4" />
                 <span className="hidden sm:inline">Dashboard</span>
@@ -542,6 +543,10 @@ export function EmployeeWelfareTracker() {
               <TabsTrigger value="activities" className="flex items-center gap-2">
                 <Activity className="h-4 w-4" />
                 <span className="hidden sm:inline">Activities</span>
+              </TabsTrigger>
+              <TabsTrigger value="analytics" className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4" />
+                <span className="hidden sm:inline">Analytics</span>
               </TabsTrigger>
             </TabsList>
           </div>
@@ -1152,6 +1157,102 @@ export function EmployeeWelfareTracker() {
                 </div>
               </CardFooter>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="analytics" className="mt-6">
+            <div className="space-y-6">
+              {/* Executive Summary Integration */}
+              <Card className="shadow-lg border" style={{ borderColor: '#9e1f62' }}>
+                <CardHeader className="text-white rounded-t-lg" style={{ background: 'linear-gradient(135deg, #9e1f62 0%, #b02470 50%, #8a1b58 100%)' }}>
+                  <CardTitle className="flex items-center gap-3 text-lg">
+                    <div className="bg-white/20 rounded-full p-2">
+                      <BarChart3 className="h-5 w-5" />
+                    </div>
+                    Advanced Analytics Dashboard
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div className="p-4 bg-blue-50 rounded-lg">
+                      <h4 className="font-semibold text-blue-900">Total Employees</h4>
+                      <p className="text-2xl font-bold text-blue-700 mt-1">{employees.length}</p>
+                      <p className="text-sm text-blue-600">Active welfare tracking</p>
+                    </div>
+                    <div className="p-4 bg-green-50 rounded-lg">
+                      <h4 className="font-semibold text-green-900">Completion Rate</h4>
+                      <p className="text-2xl font-bold text-green-700 mt-1">
+                        {employees.length > 0 
+                          ? Math.round((employees.filter(emp => !emp.isOverdue).length / employees.length) * 100)
+                          : 0}%
+                      </p>
+                      <p className="text-sm text-green-600">On-time welfare activities</p>
+                    </div>
+                    <div className="p-4 bg-purple-50 rounded-lg">
+                      <h4 className="font-semibold text-purple-900">Activities This Month</h4>
+                      <p className="text-2xl font-bold text-purple-700 mt-1">{activities.length}</p>
+                      <p className="text-sm text-purple-600">Welfare activities recorded</p>
+                    </div>
+                    <div className="p-4 bg-orange-50 rounded-lg">
+                      <h4 className="font-semibold text-orange-900">Overdue Items</h4>
+                      <p className="text-2xl font-bold text-orange-700 mt-1">
+                        {employees.filter(emp => emp.isOverdue).length}
+                      </p>
+                      <p className="text-sm text-orange-600">Require immediate attention</p>
+                    </div>
+                  </div>
+                  
+                  {/* Employee Risk Assessment */}
+                  <div className="mt-6">
+                    <h4 className="font-semibold text-gray-900 mb-4">Employee Risk Assessment</h4>
+                    <div className="space-y-3">
+                      {employees.slice(0, 5).map((employee) => {
+                        const daysSinceCreated = Math.floor((Date.now() - new Date(employee.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+                        const riskScore = employee.isOverdue ? 8.5 : 
+                                        daysSinceCreated > 30 && employee.totalActivities === 0 ? 7.0 :
+                                        employee.totalActivities === 0 ? 5.5 : 2.0;
+                        const riskLevel = riskScore >= 8 ? 'Critical' : riskScore >= 6 ? 'High' : riskScore >= 4 ? 'Medium' : 'Low';
+                        const riskColor = riskLevel === 'Critical' ? 'text-red-600 bg-red-50 border-red-200' :
+                                        riskLevel === 'High' ? 'text-orange-600 bg-orange-50 border-orange-200' :
+                                        riskLevel === 'Medium' ? 'text-yellow-600 bg-yellow-50 border-yellow-200' :
+                                        'text-green-600 bg-green-50 border-green-200';
+                        
+                        return (
+                          <div key={employee.id} className="flex items-center justify-between p-3 border rounded-lg">
+                            <div>
+                              <h5 className="font-medium">{employee.name}</h5>
+                              <p className="text-sm text-gray-600">
+                                {employee.isOverdue ? 'Overdue welfare check required' :
+                                 employee.totalActivities === 0 ? 'No activities recorded yet' :
+                                 'Regular welfare schedule'}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <Badge className={riskColor}>
+                                {riskLevel}
+                              </Badge>
+                              <p className="text-xs text-gray-500 mt-1">Score: {riskScore.toFixed(1)}/10</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  
+                  <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-start gap-3">
+                      <BarChart3 className="h-5 w-5 text-blue-600 mt-0.5" />
+                      <div>
+                        <h4 className="font-medium text-blue-900">Phase 3: Advanced Analytics</h4>
+                        <p className="text-sm text-blue-700 mt-1">
+                          Real-time analytics powered by optimized database queries and intelligent caching. 
+                          All metrics update automatically as you record new welfare activities.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>

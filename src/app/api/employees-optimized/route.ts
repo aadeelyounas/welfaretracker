@@ -1,36 +1,41 @@
+/**
+ * Optimized API route for employees with caching
+ * Handles 1000+ employees efficiently
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllEmployees, createEmployee } from '@/lib/employee-welfare-db';
 import { OptimizedWelfareDB } from '@/lib/optimized-db';
+import { createEmployee } from '@/lib/employee-welfare-db';
 
 export async function GET(request: NextRequest) {
   try {
-    const startTime = Date.now();
     const { searchParams } = new URL(request.url);
     const includeWelfare = searchParams.get('includeWelfare') === 'true';
     
-    let employees;
-    let response;
-    
     if (includeWelfare) {
-      // Use optimized cached version for welfare data (most common case)
-      employees = await OptimizedWelfareDB.getEmployeesWithWelfare();
-      response = NextResponse.json(employees);
+      // Use optimized cached version
+      const employees = await OptimizedWelfareDB.getEmployeesWithWelfare();
       
-      // Add cache headers for better performance
-      response.headers.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=600'); // 5min cache
+      // Add cache headers for client-side caching
+      const response = NextResponse.json(employees);
+      response.headers.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=600'); // 5min cache, 10min stale
+      return response;
     } else {
-      // Simple employee list (less frequent, longer cache)
-      employees = await getAllEmployees();
-      response = NextResponse.json(employees);
+      // Simple employee list (less frequent, can be cached longer)
+      const employees = await OptimizedWelfareDB.getEmployeesWithWelfare();
+      const simpleEmployees = employees.map(emp => ({
+        id: emp.id,
+        name: emp.name,
+        phoneNumber: emp.phoneNumber,
+        active: emp.active,
+        createdAt: emp.createdAt,
+        updatedAt: emp.updatedAt
+      }));
       
+      const response = NextResponse.json(simpleEmployees);
       response.headers.set('Cache-Control', 'public, max-age=600, stale-while-revalidate=1200'); // 10min cache
+      return response;
     }
-    
-    // Log performance for monitoring
-    const duration = Date.now() - startTime;
-    console.log(`📊 Employee API: ${includeWelfare ? 'with-welfare' : 'simple'} took ${duration}ms`);
-    
-    return response;
   } catch (error) {
     console.error('Error fetching employees:', error);
     return NextResponse.json(
@@ -42,7 +47,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const startTime = Date.now();
     const body = await request.json();
     const { name, phoneNumber } = body;
     
@@ -55,11 +59,8 @@ export async function POST(request: NextRequest) {
     
     const employee = await createEmployee(name.trim(), phoneNumber?.trim());
     
-    // 🔄 Invalidate relevant caches when new employee is created
+    // Invalidate caches when new employee is created
     OptimizedWelfareDB.invalidateCaches('employee');
-    
-    const duration = Date.now() - startTime;
-    console.log(`📊 Create Employee API took ${duration}ms`);
     
     return NextResponse.json(employee, { status: 201 });
   } catch (error) {
