@@ -52,7 +52,7 @@ export async function getAllEmployees(): Promise<Employee[]> {
   try {
     const result = await query(`
       SELECT 
-        id::text, name, active,
+        id::text, name, phone_number as "phoneNumber", active,
         created_at as "createdAt", updated_at as "updatedAt"
       FROM employees 
       ORDER BY name ASC
@@ -73,7 +73,7 @@ export async function getEmployeeById(id: string): Promise<Employee | null> {
   try {
     const result = await query(`
       SELECT 
-        id::text, name, active,
+        id::text, name, phone_number as "phoneNumber", active,
         created_at as "createdAt", updated_at as "updatedAt"
       FROM employees 
       WHERE id = $1
@@ -93,15 +93,15 @@ export async function getEmployeeById(id: string): Promise<Employee | null> {
   }
 }
 
-export async function createEmployee(name: string): Promise<Employee> {
+export async function createEmployee(name: string, phoneNumber?: string): Promise<Employee> {
   try {
     const result = await query(`
-      INSERT INTO employees (name) 
-      VALUES ($1)
+      INSERT INTO employees (name, phone_number) 
+      VALUES ($1, $2)
       RETURNING 
-        id::text, name, active,
+        id::text, name, phone_number as "phoneNumber", active,
         created_at as "createdAt", updated_at as "updatedAt"
-    `, [name]);
+    `, [name, phoneNumber || null]);
     
     const row = result.rows[0];
     return {
@@ -124,7 +124,9 @@ export async function updateEmployee(id: string, updates: Partial<Employee>): Pr
     Object.entries(updates).forEach(([key, value]) => {
       if (key === 'id' || key === 'createdAt' || key === 'updatedAt') return;
       
-      setParts.push(`${key} = $${paramIndex++}`);
+      // Map phoneNumber to phone_number for database
+      const dbKey = key === 'phoneNumber' ? 'phone_number' : key;
+      setParts.push(`${dbKey} = $${paramIndex++}`);
       values.push(value);
     });
 
@@ -139,7 +141,7 @@ export async function updateEmployee(id: string, updates: Partial<Employee>): Pr
       SET ${setParts.join(', ')}
       WHERE id = $${paramIndex}
       RETURNING 
-        id::text, name, active,
+        id::text, name, phone_number as "phoneNumber", active,
         created_at as "createdAt", updated_at as "updatedAt"
     `, values);
     
@@ -362,37 +364,55 @@ export async function createWelfareActivity(activity: {
 
 export async function getEmployeesWithWelfare(): Promise<EmployeeWithWelfare[]> {
   try {
-    const employees = await getAllEmployees();
-    const employeesWithWelfare: EmployeeWithWelfare[] = [];
+    // Optimized single query to get all employee welfare data
+    const result = await query(`
+      SELECT 
+        e.id::text,
+        e.name,
+        e.phone_number as "phoneNumber",
+        e.active,
+        e.created_at as "createdAt",
+        e.updated_at as "updatedAt",
+        COALESCE(ws.next_welfare_due, e.created_at + INTERVAL '14 days') as "nextWelfareDue",
+        COALESCE(activity_stats.total_activities, 0) as "totalActivities",
+        activity_stats.last_activity_date as "lastActivityDate",
+        activity_stats.days_since_last_welfare as "daysSinceLastWelfare",
+        CASE 
+          WHEN e.active = true AND COALESCE(ws.next_welfare_due, e.created_at + INTERVAL '14 days') < CURRENT_DATE THEN true 
+          ELSE false 
+        END as "isOverdue"
+      FROM employees e
+      LEFT JOIN welfare_schedules ws ON e.id = ws.employee_id
+      LEFT JOIN (
+        SELECT 
+          employee_id,
+          COUNT(*) as total_activities,
+          MAX(activity_date) as last_activity_date,
+          CURRENT_DATE - MAX(activity_date) as days_since_last_welfare
+        FROM welfare_activities
+        GROUP BY employee_id
+      ) activity_stats ON e.id = activity_stats.employee_id
+      ORDER BY 
+        e.active DESC,
+        COALESCE(ws.next_welfare_due, e.created_at + INTERVAL '14 days') ASC
+    `);
     
-    for (const employee of employees) {
-      if (!employee.active) continue;
-      
-      const schedule = await getWelfareScheduleByEmployeeId(employee.id);
-      const recentActivities = await getWelfareActivitiesByEmployeeId(employee.id, 5);
-      
-      const lastActivityDate = recentActivities.length > 0 ? recentActivities[0].activityDate : null;
-      const nextDue = schedule?.nextWelfareDue || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
-      const isOverdue = nextDue < new Date();
-      
-      let daysSinceLastWelfare = null;
-      if (lastActivityDate) {
-        daysSinceLastWelfare = Math.floor((Date.now() - lastActivityDate.getTime()) / (1000 * 60 * 60 * 24));
-      }
-      
-      employeesWithWelfare.push({
-        ...employee,
-        schedule: schedule || undefined,
-        recentActivities,
-        nextDue,
-        totalActivities: recentActivities.length,
-        lastActivityDate: lastActivityDate || undefined,
-        isOverdue,
-        daysSinceLastWelfare: daysSinceLastWelfare || undefined,
-      });
-    }
+    // Build the result with empty recent activities for now (to improve performance)
+    const employeesWithWelfare: EmployeeWithWelfare[] = result.rows.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      active: row.active,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      nextDue: new Date(row.nextWelfareDue),
+      totalActivities: parseInt(row.totalActivities) || 0,
+      lastActivityDate: row.lastActivityDate ? new Date(row.lastActivityDate) : undefined,
+      isOverdue: row.isOverdue || false,
+      daysSinceLastWelfare: row.daysSinceLastWelfare || undefined,
+      recentActivities: [] // We'll load these on-demand when viewing employee history
+    }));
     
-    return employeesWithWelfare.sort((a, b) => a.nextDue.getTime() - b.nextDue.getTime());
+    return employeesWithWelfare;
   } catch (error) {
     console.error('Error fetching employees with welfare:', error);
     throw error;

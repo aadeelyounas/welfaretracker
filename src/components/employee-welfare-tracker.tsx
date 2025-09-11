@@ -15,6 +15,7 @@ import {
   Search,
   Trash2,
   User,
+  UserX,
   Calendar,
 } from "lucide-react";
 import { z } from "zod";
@@ -29,6 +30,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,6 +43,29 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 // Schemas
 const createEmployeeSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
+  phoneNumber: z.string()
+    .optional()
+    .or(z.literal(""))
+    .refine((val) => {
+      if (!val || val === "") return true;
+      // UK phone number validation - supports various formats
+      const ukPhoneRegex = /^(?:(?:\+44\s?|0044\s?|0)(?:\d{2}\s?\d{4}\s?\d{4}|\d{3}\s?\d{3}\s?\d{4}|\d{4}\s?\d{6}|\d{5}\s?\d{5}|\d{1}\s?\d{3}\s?\d{3}\s?\d{3}))$/;
+      return ukPhoneRegex.test(val.replace(/\s/g, ''));
+    }, "Please enter a valid UK phone number"),
+});
+
+const editEmployeeSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  phoneNumber: z.string()
+    .optional()
+    .or(z.literal(""))
+    .refine((val) => {
+      if (!val || val === "") return true;
+      // UK phone number validation - supports various formats
+      const ukPhoneRegex = /^(?:(?:\+44\s?|0044\s?|0)(?:\d{2}\s?\d{4}\s?\d{4}|\d{3}\s?\d{3}\s?\d{4}|\d{4}\s?\d{6}|\d{5}\s?\d{5}|\d{1}\s?\d{3}\s?\d{3}\s?\d{3}))$/;
+      return ukPhoneRegex.test(val.replace(/\s/g, ''));
+    }, "Please enter a valid UK phone number"),
+  active: z.boolean(),
 });
 
 const createWelfareActivitySchema = z.object({
@@ -55,6 +80,7 @@ const createWelfareActivitySchema = z.object({
 interface Employee {
   id: string;
   name: string;
+  phoneNumber?: string;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -111,7 +137,7 @@ export function EmployeeWelfareTracker() {
   // Forms
   const employeeForm = useForm<z.infer<typeof createEmployeeSchema>>({
     resolver: zodResolver(createEmployeeSchema),
-    defaultValues: { name: "" },
+    defaultValues: { name: "", phoneNumber: "" },
   });
 
   const activityForm = useForm<z.infer<typeof createWelfareActivitySchema>>({
@@ -125,9 +151,9 @@ export function EmployeeWelfareTracker() {
     },
   });
 
-  const editEmployeeForm = useForm<z.infer<typeof createEmployeeSchema>>({
-    resolver: zodResolver(createEmployeeSchema),
-    defaultValues: { name: "" },
+  const editEmployeeForm = useForm<z.infer<typeof editEmployeeSchema>>({
+    resolver: zodResolver(editEmployeeSchema),
+    defaultValues: { name: "", phoneNumber: "", active: true },
   });
 
   // Fetch data
@@ -238,7 +264,7 @@ export function EmployeeWelfareTracker() {
   };
 
   // Edit employee
-  const onEditEmployee = async (values: z.infer<typeof createEmployeeSchema>) => {
+  const onEditEmployee = async (values: z.infer<typeof editEmployeeSchema>) => {
     if (!editingEmployee) return;
     
     try {
@@ -288,6 +314,8 @@ export function EmployeeWelfareTracker() {
   const handleEditEmployee = (employee: EmployeeWithWelfare) => {
     setEditingEmployee(employee);
     editEmployeeForm.setValue('name', employee.name);
+    editEmployeeForm.setValue('phoneNumber', employee.phoneNumber || '');
+    editEmployeeForm.setValue('active', employee.active);
     setShowEditEmployee(true);
   };
 
@@ -301,6 +329,7 @@ export function EmployeeWelfareTracker() {
   const handleRecordActivity = (employee: EmployeeWithWelfare) => {
     setRecordingEmployee(employee);
     activityForm.setValue('employeeId', employee.id);
+    activityForm.setValue('welfareType', 'Welfare Call');
     setShowAddActivity(true);
   };
 
@@ -357,11 +386,11 @@ export function EmployeeWelfareTracker() {
     emp.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const overdueEmployees = employees.filter(emp => emp.isOverdue);
+  const overdueEmployees = employees.filter(emp => emp.isOverdue && emp.active);
   const dueTodayEmployees = employees.filter(emp => {
     const today = startOfToday();
     const dueDate = new Date(emp.nextDue);
-    return format(dueDate, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd');
+    return format(dueDate, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd') && emp.active;
   });
 
   // Stats
@@ -376,6 +405,14 @@ export function EmployeeWelfareTracker() {
   }).length;
 
   const getStatusBadge = (employee: EmployeeWithWelfare) => {
+    if (!employee.active) {
+      return (
+        <Badge className="font-medium shadow-sm text-gray-600 bg-gray-200 border-gray-300">
+          <UserX className="h-3 w-3 mr-1" />
+          Inactive
+        </Badge>
+      );
+    }
     if (employee.isOverdue) {
       return (
         <Badge className="font-medium shadow-sm text-white" style={{
@@ -716,6 +753,22 @@ export function EmployeeWelfareTracker() {
                               </p>
                             )}
                           </div>
+                          <div>
+                            <Label htmlFor="phoneNumber" className="font-medium" style={{ color: '#9e1f62' }}>Phone Number (UK format)</Label>
+                            <Input
+                              id="phoneNumber"
+                              {...employeeForm.register("phoneNumber")}
+                              placeholder="e.g., +44 20 1234 5678 or 0207 123 4567"
+                              className="border focus:border" 
+                              style={{ borderColor: '#9e1f62', '--tw-ring-color': '#9e1f62' } as any}
+                            />
+                            {employeeForm.formState.errors.phoneNumber && (
+                              <p className="text-sm mt-1" style={{ color: '#8a1b58' }}>
+                                {employeeForm.formState.errors.phoneNumber.message}
+                              </p>
+                            )}
+                            <p className="text-xs text-gray-500 mt-1">Optional - supports various UK formats</p>
+                          </div>
                         </div>
                         <DialogFooter className="mt-6">
                           <Button type="submit" className="text-white font-medium" style={{ background: 'linear-gradient(135deg, #9e1f62 0%, #b02470 100%)' }}>
@@ -746,7 +799,7 @@ export function EmployeeWelfareTracker() {
                 {/* Mobile View: Card List */}
                 <div className="md:hidden">
                   {filteredEmployees.map((employee) => (
-                    <div key={employee.id} className="border-b p-4 space-y-3">
+                    <div key={employee.id} className={`border-b p-4 space-y-3 ${!employee.active ? 'bg-gray-50 opacity-75' : ''}`}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <Avatar>
@@ -763,6 +816,9 @@ export function EmployeeWelfareTracker() {
                               {employee.name}
                             </button>
                             <p className="text-xs text-gray-500">{employee.id}</p>
+                            {employee.phoneNumber && (
+                              <p className="text-xs text-gray-600">📞 {employee.phoneNumber}</p>
+                            )}
                           </div>
                         </div>
                         <DropdownMenu>
@@ -780,10 +836,12 @@ export function EmployeeWelfareTracker() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem onClick={() => handleRecordActivity(employee)} className="cursor-pointer">
-                              <Activity className="h-4 w-4 mr-2" />
-                              Record Activity
-                            </DropdownMenuItem>
+                            {employee.active && (
+                              <DropdownMenuItem onClick={() => handleRecordActivity(employee)} className="cursor-pointer">
+                                <Activity className="h-4 w-4 mr-2" />
+                                Record Activity
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem onClick={() => handleEditEmployee(employee)} className="cursor-pointer">
                               <Edit className="h-4 w-4 mr-2" />
                               Edit Employee
@@ -836,6 +894,7 @@ export function EmployeeWelfareTracker() {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="font-semibold" style={{ color: '#9e1f62' }}>Employee</TableHead>
+                        <TableHead className="font-semibold" style={{ color: '#9e1f62' }}>Phone</TableHead>
                         <TableHead className="font-semibold" style={{ color: '#9e1f62' }}>Welfare Status</TableHead>
                         <TableHead className="font-semibold" style={{ color: '#9e1f62' }}>Next Due Date</TableHead>
                         <TableHead className="font-semibold" style={{ color: '#9e1f62' }}>Last Check</TableHead>
@@ -846,13 +905,13 @@ export function EmployeeWelfareTracker() {
                     <TableBody>
                       {filteredEmployees.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center py-10 text-gray-500">
+                          <TableCell colSpan={7} className="text-center py-10 text-gray-500">
                             No employees found.
                           </TableCell>
                         </TableRow>
                       ) : (
                         filteredEmployees.map((employee) => (
-                          <TableRow key={employee.id} className="hover:bg-pink-50/50">
+                          <TableRow key={employee.id} className={`hover:bg-pink-50/50 ${!employee.active ? 'bg-gray-50 opacity-75' : ''}`}>
                             <TableCell className="font-medium">
                               <div className="flex items-center gap-3">
                                 <Avatar>
@@ -871,6 +930,11 @@ export function EmployeeWelfareTracker() {
                                   <p className="text-xs text-gray-500">{employee.id}</p>
                                 </div>
                               </div>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-sm text-gray-600">
+                                {employee.phoneNumber || '-'}
+                              </span>
                             </TableCell>
                             <TableCell>{getStatusBadge(employee)}</TableCell>
                             <TableCell className="font-medium">{format(new Date(employee.nextDue), 'PP')}</TableCell>
@@ -908,13 +972,15 @@ export function EmployeeWelfareTracker() {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-48">
-                                  <DropdownMenuItem 
-                                    onClick={() => handleRecordActivity(employee)}
-                                    className="cursor-pointer"
-                                  >
-                                    <Activity className="h-4 w-4 mr-2" />
-                                    Record Activity
-                                  </DropdownMenuItem>
+                                  {employee.active && (
+                                    <DropdownMenuItem 
+                                      onClick={() => handleRecordActivity(employee)}
+                                      className="cursor-pointer"
+                                    >
+                                      <Activity className="h-4 w-4 mr-2" />
+                                      Record Activity
+                                    </DropdownMenuItem>
+                                  )}
                                   <DropdownMenuItem 
                                     onClick={() => handleEditEmployee(employee)}
                                     className="cursor-pointer"
@@ -1118,6 +1184,38 @@ export function EmployeeWelfareTracker() {
                     {editEmployeeForm.formState.errors.name.message}
                   </p>
                 )}
+              </div>
+              <div>
+                <Label htmlFor="editPhoneNumber" className="font-medium" style={{ color: '#9e1f62' }}>Phone Number (UK format)</Label>
+                <Input
+                  id="editPhoneNumber"
+                  {...editEmployeeForm.register("phoneNumber")}
+                  placeholder="e.g., +44 20 1234 5678 or 0207 123 4567"
+                  className="border focus:border" 
+                  style={{ borderColor: '#9e1f62', '--tw-ring-color': '#9e1f62' } as any}
+                />
+                {editEmployeeForm.formState.errors.phoneNumber && (
+                  <p className="text-sm mt-1" style={{ color: '#8a1b58' }}>
+                    {editEmployeeForm.formState.errors.phoneNumber.message}
+                  </p>
+                )}
+                <p className="text-xs text-gray-500 mt-1">Optional - supports various UK formats</p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="active"
+                  checked={editEmployeeForm.watch("active")}
+                  onCheckedChange={(checked) => editEmployeeForm.setValue("active", checked as boolean)}
+                  className="border-2"
+                  style={{ borderColor: '#9e1f62' }}
+                />
+                <Label 
+                  htmlFor="active" 
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  style={{ color: '#9e1f62' }}
+                >
+                  Active Employee
+                </Label>
               </div>
             </div>
             <DialogFooter className="mt-6">

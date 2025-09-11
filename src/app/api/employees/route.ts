@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name } = body;
+    const { name, phoneNumber } = body;
     
     if (!name || typeof name !== 'string') {
       return NextResponse.json(
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const employee = await createEmployee(name.trim());
+    const employee = await createEmployee(name.trim(), phoneNumber?.trim());
     
     return NextResponse.json(employee, { status: 201 });
   } catch (error) {

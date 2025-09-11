@@ -14,6 +14,7 @@ export interface User {
 export interface Employee {
   id: string;
   name: string;
+  phoneNumber?: string;
   active: boolean;
   createdAt: string;
   updatedAt?: string;
