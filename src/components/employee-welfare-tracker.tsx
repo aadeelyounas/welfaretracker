@@ -18,6 +18,7 @@ import {
   UserX,
   Calendar,
   BarChart3,
+  RefreshCw,
 } from "lucide-react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -132,6 +133,7 @@ export function EmployeeWelfareTracker() {
   const [currentPage, setCurrentPage] = React.useState(1);
   const [totalActivities, setTotalActivities] = React.useState(0);
   const activitiesPerPage = 10;
+  const [clearing, setClearing] = React.useState(false);
   
   const { toast } = useToast();
 
@@ -186,6 +188,42 @@ export function EmployeeWelfareTracker() {
       console.error('Error fetching activities:', error);
     }
   }, [activitiesPerPage]);
+
+  // Hard clear all employee and activity caches
+  const handleHardClear = React.useCallback(async () => {
+    setClearing(true);
+    try {
+      const response = await fetch('/api/cache/clear', {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to clear cache');
+      }
+      
+      const result = await response.json();
+      console.log('🧹 Hard cache cleared:', result);
+      
+      // Force refresh all data after clearing cache
+      setLoading(true);
+      await Promise.all([fetchEmployees(), fetchActivities(currentPage)]);
+      setLoading(false);
+      
+      toast({
+        title: "Cache cleared successfully",
+        description: "All employee and activity caches have been cleared and data refreshed.",
+      });
+    } catch (error) {
+      console.error('Error clearing cache:', error);
+      toast({
+        title: "Cache clear failed",
+        description: "Failed to clear cache. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setClearing(false);
+    }
+  }, [fetchEmployees, fetchActivities, currentPage, toast]);
 
   React.useEffect(() => {
     const loadData = async () => {
@@ -508,7 +546,18 @@ export function EmployeeWelfareTracker() {
                   </p>
                 </div>
               </div>
-              <div className="w-full sm:w-auto">
+              <div className="w-full sm:w-auto flex items-center gap-2">
+                <Button 
+                  onClick={handleHardClear} 
+                  disabled={clearing || loading}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2 bg-white/10 border-white/20 text-white hover:bg-white/20"
+                  title="Clear all employee and activity caches"
+                >
+                  <Trash2 className={`h-4 w-4 ${clearing ? 'animate-pulse' : ''}`} />
+                  {clearing ? 'Clearing...' : 'Clear Cache'}
+                </Button>
                 <LogoutButton />
               </div>
             </div>

@@ -74,9 +74,38 @@ export interface ExecutiveSummary {
 }
 
 /**
- * Simplified Analytics Engine
+ * Simplified Analytics Engine with optimized caching
  */
 export class WelfareAnalytics {
+  
+  /**
+   * Invalidate all analytics caches for immediate data refresh
+   */
+  static invalidateAllCaches(): void {
+    appCache.invalidate('analytics:.*');
+    console.log('🔄 Analytics caches invalidated for real-time refresh');
+  }
+  
+  /**
+   * Invalidate specific analytics cache
+   */
+  static invalidateCache(type: 'trends' | 'risk-scores' | 'performance' | 'executive-summary'): void {
+    switch (type) {
+      case 'trends':
+        appCache.invalidate('analytics:trends:.*');
+        break;
+      case 'risk-scores':
+        appCache.invalidate('analytics:risk-scores');
+        break;
+      case 'performance':
+        appCache.invalidate('analytics:performance:.*');
+        break;
+      case 'executive-summary':
+        appCache.invalidate('analytics:executive-summary');
+        break;
+    }
+    console.log(`🔄 Analytics cache '${type}' invalidated`);
+  }
   /**
    * Get basic welfare activity trends
    */
@@ -119,7 +148,7 @@ export class WelfareAnalytics {
         activityGrowth: 0
       }));
 
-      appCache.set(cacheKey, trends, 60 * 60 * 1000); // 1 hour cache
+      appCache.set(cacheKey, trends, analyticsCacheConfig.trends);
       return trends;
     } catch (error) {
       console.error('Error calculating welfare trends:', error);
@@ -194,7 +223,7 @@ export class WelfareAnalytics {
         };
       });
 
-      appCache.set(cacheKey, riskScores, 30 * 60 * 1000); // 30 minutes cache
+      appCache.set(cacheKey, riskScores, analyticsCacheConfig.riskScores);
       return riskScores;
     } catch (error) {
       console.error('Error calculating employee risk scores:', error);
@@ -254,7 +283,7 @@ export class WelfareAnalytics {
         ]
       };
 
-      appCache.set(cacheKey, performanceData, 4 * 60 * 60 * 1000); // 4 hours cache
+      appCache.set(cacheKey, performanceData, analyticsCacheConfig.performance);
       return performanceData;
     } catch (error) {
       console.error('Error calculating performance metrics:', error);
@@ -339,7 +368,7 @@ export class WelfareAnalytics {
         ].filter(Boolean)
       };
 
-      appCache.set(cacheKey, summary, 60 * 60 * 1000); // 1 hour cache
+      appCache.set(cacheKey, summary, analyticsCacheConfig.executiveSummary);
       return summary;
     } catch (error) {
       console.error('Error generating executive summary:', error);
@@ -363,10 +392,18 @@ export class WelfareAnalytics {
   }
 }
 
-// Enhanced cache keys for analytics
+// Enhanced cache keys for analytics with shorter TTL for real-time responsiveness
 export const AnalyticsCacheKeys = {
   trends: (months: number) => `analytics:trends:${months}months`,
   riskScores: () => 'analytics:risk-scores',
   performance: (start?: Date, end?: Date) => `analytics:performance:${start?.toISOString() || 'default'}:${end?.toISOString() || 'default'}`,
   executiveSummary: () => 'analytics:executive-summary'
+} as const;
+
+// Optimized cache TTL for analytics - shorter times for real-time feel
+export const analyticsCacheConfig = {
+  trends: 5 * 60 * 1000,         // 5 minutes (was 1 hour)
+  riskScores: 3 * 60 * 1000,     // 3 minutes (was 30 minutes)  
+  performance: 10 * 60 * 1000,   // 10 minutes (was 4 hours)
+  executiveSummary: 2 * 60 * 1000 // 2 minutes (was 1 hour)
 } as const;

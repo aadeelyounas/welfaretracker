@@ -1,5 +1,16 @@
-import { NextResponse } from 'next/server';
-import { getAllWelfareEvents, healthCheck } from '@/lib/db';
+import { NextRequest, NextResponse } from 'next/server';
+import { getAllWelfareEvents, query } from '@/lib/employee-welfare-db';
+
+// Simple database health check function
+async function healthCheck(): Promise<boolean> {
+  try {
+    await query('SELECT 1');
+    return true;
+  } catch (error) {
+    console.error('Health check failed:', error);
+    return false;
+  }
+}
 
 export async function GET() {
   try {

@@ -1,6 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllWelfareEvents, createWelfareEvent } from '@/lib/db';
+import { query, getAllWelfareEvents, createWelfareEvent } from '@/lib/employee-welfare-db';
 import { WelfareEvent } from '@/lib/types';
 import { OptimizedWelfareDB } from '@/lib/optimized-db';
 import { z } from 'zod';

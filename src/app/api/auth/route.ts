@@ -1,7 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sign, verify } from 'jsonwebtoken';
-import { getUserByUsername } from '../../../lib/db';
+import { query } from '../../../lib/employee-welfare-db';
 import bcrypt from 'bcryptjs';
+
+// Database function to get user by username
+async function getUserByUsername(username: string) {
+  try {
+    const result = await query(
+      'SELECT id, username, password, name, role, active FROM users WHERE username = $1',
+      [username]
+    );
+    return result.rows[0] || null;
+  } catch (error) {
+    console.error('Error fetching user from database:', error);
+    throw new Error('Database connection failed');
+  }
+}
 
 export const runtime = 'nodejs';
 
@@ -18,7 +32,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const user = await getUserByUsername(username);
+    let user;
+    try {
+      user = await getUserByUsername(username);
+    } catch (dbError) {
+      console.error('Database error during authentication:', dbError);
+      return NextResponse.json(
+        { error: 'Authentication service unavailable' },
+        { status: 503 }
+      );
+    }
 
     if (!user || !user.active) {
       return NextResponse.json(
@@ -27,8 +50,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check password using bcrypt
-    const isValidPassword = await bcrypt.compare(password, user.password);
+    // Check password using bcrypt (handle both password_hash and password fields)
+    const passwordHash = user.password_hash || user.password;
+    const isValidPassword = await bcrypt.compare(password, passwordHash);
     
     if (!isValidPassword) {
       return NextResponse.json(

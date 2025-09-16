@@ -84,15 +84,39 @@ class AppCache {
     };
   }
 
+  /**
+   * Force refresh specific cache keys immediately
+   * Useful for real-time updates after data changes
+   */
+  forceRefresh(pattern: string): void {
+    this.invalidate(pattern);
+    console.log(`🔄 Force refresh: cleared caches matching '${pattern}'`);
+  }
 
+  /**
+   * Get cached item timestamp to check staleness
+   */
+  getTimestamp(key: string): number | null {
+    const item = this.cache.get(key);
+    return item ? item.timestamp : null;
+  }
+
+  /**
+   * Check if cache key exists and is still valid
+   */
+  isValid(key: string): boolean {
+    const item = this.cache.get(key);
+    if (!item) return false;
+    return (Date.now() - item.timestamp) <= item.ttl;
+  }
 }
 
 export const appCache = new AppCache();
 
-// Cache configuration for different data types
+// Cache configuration for different data types - optimized for responsiveness
 export const cacheConfig = {
-  employees: 10 * 60 * 1000,      // 10 minutes (changes infrequently)
-  dashboardStats: 5 * 60 * 1000,  // 5 minutes (updates with new activities)
-  activities: 15 * 60 * 1000,     // 15 minutes (historical data)
-  employeeHistory: 30 * 60 * 1000  // 30 minutes (rarely changes)
+  employees: 5 * 60 * 1000,       // 5 minutes (reduced from 10 - employee changes need quicker reflection)
+  dashboardStats: 2 * 60 * 1000,  // 2 minutes (reduced from 5 - dashboard should be more real-time)
+  activities: 10 * 60 * 1000,     // 10 minutes (reduced from 15 - activity lists should refresh more often)
+  employeeHistory: 15 * 60 * 1000  // 15 minutes (reduced from 30 - history changes with new activities)
 } as const;

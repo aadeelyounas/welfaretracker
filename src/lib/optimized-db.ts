@@ -37,7 +37,12 @@ export class OptimizedWelfareDB {
         stats.last_activity_date as "lastActivityDate",
         stats.days_since_last_welfare as "daysSinceLastWelfare",
         CASE 
-          WHEN e.active = true AND COALESCE(ws.next_welfare_due, e.created_at + INTERVAL '14 days') < CURRENT_DATE 
+          WHEN e.active = true AND (
+            -- No welfare activities and created more than 30 days ago
+            (stats.last_activity_date IS NULL AND e.created_at < CURRENT_DATE - INTERVAL '30 days') OR
+            -- Last welfare check was more than 30 days ago  
+            (stats.last_activity_date IS NOT NULL AND stats.last_activity_date < CURRENT_DATE - INTERVAL '30 days')
+          )
           THEN true 
           ELSE false 
         END as "isOverdue"
@@ -140,17 +145,27 @@ export class OptimizedWelfareDB {
 
   /**
    * Invalidate relevant caches when data changes
+   * Now includes analytics cache invalidation for real-time updates
    */
-  static invalidateCaches(type: 'employee' | 'activity' | 'all') {
+  static invalidateCaches(type: 'employee' | 'activity' | 'analytics' | 'all') {
     switch (type) {
       case 'employee':
         appCache.invalidate('employees:.*');
         appCache.invalidate('dashboard:.*');
+        // Employee changes affect risk scores and executive summary
+        appCache.invalidate('analytics:risk-scores');
+        appCache.invalidate('analytics:executive-summary');
         break;
       case 'activity':
         appCache.invalidate('activities:.*');
         appCache.invalidate('dashboard:.*');
         appCache.invalidate('employee:.*:history');
+        // Activity changes affect all analytics
+        appCache.invalidate('analytics:.*');
+        break;
+      case 'analytics':
+        // Force refresh all analytics data
+        appCache.invalidate('analytics:.*');
         break;
       case 'all':
         appCache.clear();

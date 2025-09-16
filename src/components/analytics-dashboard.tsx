@@ -19,7 +19,9 @@ import {
   CheckCircle, 
   Clock,
   Target,
-  BarChart3
+  BarChart3,
+  RefreshCw,
+  Trash2
 } from 'lucide-react';
 
 // Types for analytics data
@@ -75,6 +77,8 @@ export function ExecutiveSummaryCard() {
   const [summary, setSummary] = useState<ExecutiveSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   useEffect(() => {
     // Add a small delay to ensure any auth context is loaded
@@ -84,9 +88,20 @@ export function ExecutiveSummaryCard() {
     return () => clearTimeout(timer);
   }, []);
 
-  const fetchExecutiveSummary = async () => {
+  const fetchExecutiveSummary = async (forceRefresh = false) => {
     try {
-      setLoading(true);
+      if (forceRefresh) {
+        setRefreshing(true);
+        // Force refresh analytics cache
+        await fetch('/api/cache/refresh', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'analytics' })
+        });
+      } else {
+        setLoading(true);
+      }
+      
       const response = await fetch('/api/analytics/summary');
       if (!response.ok) {
         const errorData = await response.text();
@@ -96,11 +111,41 @@ export function ExecutiveSummaryCard() {
       
       const result = await response.json();
       setSummary(result.data);
+      setError(null); // Clear any previous errors
     } catch (err) {
       console.error('Error fetching executive summary:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const handleRefresh = () => {
+    fetchExecutiveSummary(true);
+  };
+
+  const handleHardClear = async () => {
+    setClearing(true);
+    try {
+      const response = await fetch('/api/cache/clear', {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to clear cache');
+      }
+      
+      const result = await response.json();
+      console.log('🧹 Hard cache cleared:', result);
+      
+      // Force refresh data after clearing cache
+      await fetchExecutiveSummary(true);
+    } catch (err) {
+      console.error('Error clearing cache:', err);
+      setError(err instanceof Error ? err.message : 'Failed to clear cache');
+    } finally {
+      setClearing(false);
     }
   };
 
@@ -150,6 +195,37 @@ export function ExecutiveSummaryCard() {
 
   return (
     <div className="space-y-6">
+      {/* Header with Refresh and Hard Clear Buttons */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Executive Summary</h2>
+          <p className="text-muted-foreground">Real-time welfare analytics and insights</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button 
+            onClick={handleRefresh} 
+            disabled={refreshing || clearing}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Refreshing...' : 'Refresh Data'}
+          </Button>
+          <Button 
+            onClick={handleHardClear} 
+            disabled={refreshing || clearing}
+            variant="destructive"
+            size="sm"
+            className="flex items-center gap-2"
+            title="Clear all caches and force fresh data"
+          >
+            <Trash2 className={`h-4 w-4 ${clearing ? 'animate-pulse' : ''}`} />
+            {clearing ? 'Clearing...' : 'Hard Clear'}
+          </Button>
+        </div>
+      </div>
+
       {/* Overall Health Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
@@ -311,6 +387,8 @@ export function ExecutiveSummaryCard() {
 export function RiskScoreDashboard() {
   const [riskScores, setRiskScores] = useState<EmployeeRiskScore[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [selectedRiskLevel, setSelectedRiskLevel] = useState<string>('');
 
   useEffect(() => {
@@ -321,9 +399,20 @@ export function RiskScoreDashboard() {
     return () => clearTimeout(timer);
   }, [selectedRiskLevel]);
 
-  const fetchRiskScores = async () => {
+  const fetchRiskScores = async (forceRefresh = false) => {
     try {
-      setLoading(true);
+      if (forceRefresh) {
+        setRefreshing(true);
+        // Force refresh analytics cache
+        await fetch('/api/cache/refresh', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'analytics' })
+        });
+      } else {
+        setLoading(true);
+      }
+      
       const url = selectedRiskLevel 
         ? `/api/analytics/risk-scores?riskLevel=${selectedRiskLevel}`
         : '/api/analytics/risk-scores';
@@ -343,6 +432,34 @@ export function RiskScoreDashboard() {
       setRiskScores([]);
     } finally {
       setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const handleRefresh = () => {
+    fetchRiskScores(true);
+  };
+
+  const handleHardClear = async () => {
+    setClearing(true);
+    try {
+      const response = await fetch('/api/cache/clear', {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to clear cache');
+      }
+      
+      const result = await response.json();
+      console.log('🧹 Hard cache cleared:', result);
+      
+      // Force refresh data after clearing cache
+      await fetchRiskScores(true);
+    } catch (err) {
+      console.error('Error clearing cache:', err);
+    } finally {
+      setClearing(false);
     }
   };
 
@@ -358,7 +475,32 @@ export function RiskScoreDashboard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Employee Risk Assessment</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle>Employee Risk Assessment</CardTitle>
+          <div className="flex items-center gap-2">
+            <Button 
+              onClick={handleRefresh} 
+              disabled={refreshing || clearing}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              {refreshing ? 'Refreshing...' : 'Refresh'}
+            </Button>
+            <Button 
+              onClick={handleHardClear} 
+              disabled={refreshing || clearing}
+              variant="destructive"
+              size="sm"
+              className="flex items-center gap-2"
+              title="Clear all caches and force fresh data"
+            >
+              <Trash2 className={`h-4 w-4 ${clearing ? 'animate-pulse' : ''}`} />
+              {clearing ? 'Clearing...' : 'Hard Clear'}
+            </Button>
+          </div>
+        </div>
         <div className="flex gap-2 flex-wrap">
           {['', 'Critical', 'High', 'Medium', 'Low'].map((level) => (
             <Button
