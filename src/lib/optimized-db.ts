@@ -59,25 +59,53 @@ export class OptimizedWelfareDB {
       ORDER BY e.active DESC, COALESCE(ws.next_welfare_due, e.created_at + INTERVAL '14 days') ASC
     `);
 
-    const employees = result.rows.map((row: any) => ({
-      id: row.id,
-      name: row.name,
-      phoneNumber: row.phoneNumber,
-      active: row.active,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-      nextDue: new Date(row.nextWelfareDue),
-      totalActivities: parseInt(row.totalActivities) || 0,
-      lastActivityDate: row.lastActivityDate ? new Date(row.lastActivityDate) : undefined,
-      isOverdue: row.isOverdue || false,
-      daysSinceLastWelfare: row.daysSinceLastWelfare || undefined,
-      recentActivities: [] // Load on-demand
-    }));
+    // Now load recent activities for each employee
+    const employeesWithActivities = await Promise.all(
+      result.rows.map(async (row: any) => {
+        // Get recent activities for this employee
+        const activitiesResult = await query(
+          `SELECT 
+            id,
+            welfare_type as "welfareType",
+            activity_date as "activityDate",
+            notes,
+            conducted_by as "conductedBy",
+            created_at as "createdAt"
+          FROM welfare_activities 
+          WHERE employee_id = $1 
+          ORDER BY activity_date DESC, created_at DESC 
+          LIMIT 5`,
+          [row.id]
+        );
+
+        return {
+          id: row.id,
+          name: row.name,
+          phoneNumber: row.phoneNumber,
+          active: row.active,
+          createdAt: row.createdAt,
+          updatedAt: row.updatedAt,
+          nextDue: new Date(row.nextWelfareDue),
+          totalActivities: parseInt(row.totalActivities) || 0,
+          lastActivityDate: row.lastActivityDate ? new Date(row.lastActivityDate) : undefined,
+          isOverdue: row.isOverdue || false,
+          daysSinceLastWelfare: row.daysSinceLastWelfare || undefined,
+          recentActivities: activitiesResult.rows.map((activity: any) => ({
+            id: activity.id,
+            welfareType: activity.welfareType,
+            activityDate: new Date(activity.activityDate),
+            notes: activity.notes,
+            conductedBy: activity.conductedBy,
+            createdAt: new Date(activity.createdAt)
+          }))
+        };
+      })
+    );
 
     // Cache the result
-    appCache.set(cacheKey, employees, cacheConfig.employees);
+    appCache.set(cacheKey, employeesWithActivities, cacheConfig.employees);
     
-    return employees;
+    return employeesWithActivities;
   }
 
   /**

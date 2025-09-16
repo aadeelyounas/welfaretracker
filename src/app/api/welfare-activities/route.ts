@@ -8,23 +8,65 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
     const includeTotal = searchParams.get('includeTotal') === 'true';
+    const employeeId = searchParams.get('employeeId');
     
-    if (includeTotal) {
-      // Get both activities and total count
-      const [activities, totalResult] = await Promise.all([
-        getAllWelfareActivities(limit, offset),
-        query('SELECT COUNT(*) as count FROM welfare_activities', [])
-      ]);
+    if (employeeId) {
+      // Get activities for specific employee
+      let activitiesQuery = `
+        SELECT 
+          wa.id,
+          wa.employee_id as "employeeId", 
+          e.name as "employeeName",
+          wa.welfare_type as "welfareType",
+          wa.activity_date as "activityDate",
+          wa.notes,
+          wa.conducted_by as "conductedBy",
+          wa.created_at as "createdAt",
+          'completed' as status,
+          1 as "cycleNumber"
+        FROM welfare_activities wa
+        JOIN employees e ON wa.employee_id = e.id
+        WHERE wa.employee_id = $1
+        ORDER BY wa.activity_date DESC, wa.created_at DESC
+        LIMIT $2 OFFSET $3
+      `;
       
-      return NextResponse.json({
-        activities,
-        total: parseInt(totalResult.rows[0].count),
-        limit,
-        offset
-      });
+      const activities = await query(activitiesQuery, [employeeId, limit, offset]);
+      
+      if (includeTotal) {
+        const totalResult = await query(
+          'SELECT COUNT(*) as count FROM welfare_activities WHERE employee_id = $1', 
+          [employeeId]
+        );
+        
+        return NextResponse.json({
+          activities: activities.rows,
+          total: parseInt(totalResult.rows[0].count),
+          limit,
+          offset
+        });
+      } else {
+        return NextResponse.json(activities.rows);
+      }
     } else {
-      const activities = await getAllWelfareActivities(limit, offset);
-      return NextResponse.json(activities);
+      // Get all activities (existing behavior)
+      if (includeTotal) {
+        // Get both activities and total count
+        const [activities, totalResult] = await Promise.all([
+          getAllWelfareActivities(limit, offset),
+          query('SELECT COUNT(*) as count FROM welfare_activities', [])
+        ]);
+        
+        return NextResponse.json({
+          activities,
+          total: parseInt(totalResult.rows[0].count),
+          limit,
+          offset
+        });
+      } else {
+        const activities = await getAllWelfareActivities(limit, offset);
+        return NextResponse.json(activities);
+      }
     }
   } catch (error) {
     console.error('Error fetching welfare activities:', error);

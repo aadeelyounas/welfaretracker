@@ -7,6 +7,8 @@ import {
   AlertTriangle,
   Bell,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Edit,
   LayoutDashboard,
@@ -133,6 +135,12 @@ export function EmployeeWelfareTracker() {
   const [currentPage, setCurrentPage] = React.useState(1);
   const [totalActivities, setTotalActivities] = React.useState(0);
   const activitiesPerPage = 10;
+  
+  // Employee history pagination
+  const [historyCurrentPage, setHistoryCurrentPage] = React.useState(1);
+  const [totalEmployeeActivities, setTotalEmployeeActivities] = React.useState(0);
+  const [historyLoading, setHistoryLoading] = React.useState(false);
+  const historyPerPage = 8;
   const [clearing, setClearing] = React.useState(false);
   
   const { toast } = useToast();
@@ -372,26 +380,25 @@ export function EmployeeWelfareTracker() {
     setShowAddActivity(true);
   };
 
-  // Handle view employee history
-  const handleViewEmployeeHistory = async (employee: EmployeeWithWelfare) => {
-    setViewingEmployee(employee);
-    setShowEmployeeHistory(true);
-    
+  // Load employee history with pagination
+  const loadEmployeeHistory = async (employee: EmployeeWithWelfare, page: number = 1) => {
+    setHistoryLoading(true);
     try {
-      // Fetch welfare activities for this employee from the consolidated table
-      const activitiesResponse = await fetch(`/api/welfare-activities`);
+      const limit = historyPerPage;
+      const offset = (page - 1) * limit;
+      
+      // Fetch paginated welfare activities for this specific employee
+      const activitiesResponse = await fetch(
+        `/api/welfare-activities?employeeId=${employee.id}&limit=${limit}&offset=${offset}&includeTotal=true`
+      );
       
       if (activitiesResponse.ok) {
-        const allActivities = await activitiesResponse.json();
-        
-        // Filter activities for this employee  
-        const employeeActivities = allActivities.filter((activity: any) =>
-          activity.employeeId === employee.id ||
-          activity.employeeName === employee.name
-        );
+        const data = await activitiesResponse.json();
+        const activities = data.activities || data;
+        const total = data.total || activities.length;
         
         // Transform to unified format
-        const combinedHistory = employeeActivities.map((activity: any) => ({
+        const combinedHistory = activities.map((activity: any) => ({
           id: activity.id,
           employeeId: activity.employeeId,
           employeeName: activity.employeeName,
@@ -405,18 +412,36 @@ export function EmployeeWelfareTracker() {
           source: 'activity'
         }));
         
-        // Sort by date (newest first)
-        combinedHistory.sort((a: any, b: any) => new Date(b.activityDate).getTime() - new Date(a.activityDate).getTime());
-        
-        console.log(`Found ${combinedHistory.length} welfare records for ${employee.name}:`, combinedHistory);
+        console.log(`Loaded page ${page} of ${employee.name}'s history: ${activities.length} records`);
         setEmployeeHistory(combinedHistory);
+        setTotalEmployeeActivities(total);
       } else {
         console.error('Failed to fetch employee history');
         setEmployeeHistory([]);
+        setTotalEmployeeActivities(0);
       }
     } catch (error) {
       console.error('Error fetching employee history:', error);
       setEmployeeHistory([]);
+      setTotalEmployeeActivities(0);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  // Handle view employee history
+  const handleViewEmployeeHistory = async (employee: EmployeeWithWelfare) => {
+    setViewingEmployee(employee);
+    setHistoryCurrentPage(1);
+    setShowEmployeeHistory(true);
+    await loadEmployeeHistory(employee, 1);
+  };
+
+  // Handle history page change
+  const handleHistoryPageChange = async (page: number) => {
+    setHistoryCurrentPage(page);
+    if (viewingEmployee) {
+      await loadEmployeeHistory(viewingEmployee, page);
     }
   };
 
@@ -1416,7 +1441,12 @@ export function EmployeeWelfareTracker() {
             </DialogDescription>
           </DialogHeader>
           <div className="overflow-y-auto max-h-[60vh]">
-            {employeeHistory.length === 0 ? (
+            {historyLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
+                <p className="text-gray-500">Loading welfare history...</p>
+              </div>
+            ) : employeeHistory.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <User className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>No welfare activities recorded for this employee yet.</p>
@@ -1480,6 +1510,65 @@ export function EmployeeWelfareTracker() {
               </div>
             )}
           </div>
+          
+          {/* Pagination Controls */}
+          {employeeHistory.length > 0 && totalEmployeeActivities > historyPerPage && (
+            <div className="flex items-center justify-between px-2 py-4 border-t">
+              <div className="text-sm text-gray-500">
+                Showing {((historyCurrentPage - 1) * historyPerPage) + 1} to{' '}
+                {Math.min(historyCurrentPage * historyPerPage, totalEmployeeActivities)} of{' '}
+                {totalEmployeeActivities} welfare records
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleHistoryPageChange(historyCurrentPage - 1)}
+                  disabled={historyCurrentPage <= 1 || historyLoading}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+                
+                <div className="flex items-center space-x-1">
+                  {Array.from({ length: Math.ceil(totalEmployeeActivities / historyPerPage) }, (_, i) => i + 1)
+                    .filter(page => 
+                      page === 1 || 
+                      page === Math.ceil(totalEmployeeActivities / historyPerPage) ||
+                      Math.abs(page - historyCurrentPage) <= 1
+                    )
+                    .map((page, index, array) => (
+                      <React.Fragment key={page}>
+                        {index > 0 && array[index - 1] < page - 1 && (
+                          <span className="px-2 text-gray-400">...</span>
+                        )}
+                        <Button
+                          variant={page === historyCurrentPage ? "default" : "outline"}
+                          size="sm"
+                          className="w-8 h-8 p-0"
+                          onClick={() => handleHistoryPageChange(page)}
+                          disabled={historyLoading}
+                        >
+                          {page}
+                        </Button>
+                      </React.Fragment>
+                    ))
+                  }
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleHistoryPageChange(historyCurrentPage + 1)}
+                  disabled={historyCurrentPage >= Math.ceil(totalEmployeeActivities / historyPerPage) || historyLoading}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+          
           <DialogFooter>
             <Button 
               onClick={() => setShowEmployeeHistory(false)}
