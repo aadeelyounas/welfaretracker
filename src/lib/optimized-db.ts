@@ -32,7 +32,11 @@ export class OptimizedWelfareDB {
         e.active,
         e.created_at as "createdAt",
         e.updated_at as "updatedAt",
-        COALESCE(ws.next_welfare_due, e.created_at + INTERVAL '14 days') as "nextWelfareDue",
+        CASE 
+          WHEN ws.next_welfare_due IS NOT NULL THEN ws.next_welfare_due
+          WHEN stats.last_activity_date IS NOT NULL THEN stats.last_activity_date + INTERVAL '21 days'
+          ELSE e.created_at + INTERVAL '14 days'
+        END as "nextWelfareDue",
         COALESCE(stats.total_activities, 0) as "totalActivities",
         stats.last_activity_date as "lastActivityDate",
         stats.days_since_last_welfare as "daysSinceLastWelfare",
