@@ -42,10 +42,10 @@ export class OptimizedWelfareDB {
         stats.days_since_last_welfare as "daysSinceLastWelfare",
         CASE 
           WHEN e.active = true AND (
-            -- No welfare activities and created more than 30 days ago
-            (stats.last_activity_date IS NULL AND e.created_at < CURRENT_DATE - INTERVAL '30 days') OR
-            -- Last welfare check was more than 30 days ago  
-            (stats.last_activity_date IS NOT NULL AND stats.last_activity_date < CURRENT_DATE - INTERVAL '30 days')
+            -- No welfare activities and created more than 14 days ago
+            (stats.last_activity_date IS NULL AND e.created_at < CURRENT_DATE - INTERVAL '14 days') OR
+            -- Last welfare check was more than 14 days ago  
+            (stats.last_activity_date IS NOT NULL AND stats.last_activity_date < CURRENT_DATE - INTERVAL '14 days')
           )
           THEN true 
           ELSE false 
